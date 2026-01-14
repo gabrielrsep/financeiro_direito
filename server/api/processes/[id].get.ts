@@ -13,17 +13,21 @@ export default defineEventHandler(async (event) => {
 
   try {
     // Busca o processo com dados do cliente
-    const process = db.prepare(`
-      SELECT 
-        p.*,
-        c.name as client_name,
-        c.document as client_document,
-        c.contact as client_contact,
-        c.address as client_address
-      FROM processes p
-      LEFT JOIN clients c ON p.client_id = c.id
-      WHERE p.id = ?
-    `).get(id)
+    const processResult = await db.execute({
+      sql: `
+        SELECT 
+          p.*,
+          c.name as client_name,
+          c.document as client_document,
+          c.contact as client_contact,
+          c.address as client_address
+        FROM processes p
+        LEFT JOIN clients c ON p.client_id = c.id
+        WHERE p.id = ?
+      `,
+      args: [id]
+    })
+    const process = processResult.rows[0];
 
     if (!process) {
       throw createError({
@@ -33,12 +37,16 @@ export default defineEventHandler(async (event) => {
     }
 
     // Busca os pagamentos do processo
-    const payments = db.prepare(`
-      SELECT *
-      FROM payments
-      WHERE process_id = ?
-      ORDER BY due_date ASC, created_at ASC
-    `).all(id)
+    const paymentsResult = await db.execute({
+      sql: `
+        SELECT *
+        FROM payments
+        WHERE process_id = ?
+        ORDER BY due_date ASC, created_at ASC
+      `,
+      args: [id]
+    });
+    const payments = paymentsResult.rows;
 
     return {
       success: true,

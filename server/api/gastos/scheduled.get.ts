@@ -1,6 +1,6 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const month = query.month ? parseInt(query.month as string) : new Date().getMonth() + 1;
     const year = query.year ? parseInt(query.year as string) : new Date().getFullYear();
@@ -43,8 +43,11 @@ export default defineEventHandler((event) => {
 
         sql += " ORDER BY pa.due_date ASC";
 
-        const stmt = db.prepare(sql);
-        const scheduledPayments = stmt.all(...params);
+        const result = await db.execute({
+            sql,
+            args: params
+        });
+        const scheduledPayments = result.rows;
 
         return {
             success: true,

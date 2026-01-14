@@ -14,12 +14,12 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const stmt = db.prepare(
-            "UPDATE clients SET name = ?, document = ?, contact = ?, address = ? WHERE id = ?"
-        );
-        const info = stmt.run(name, document, contact, address, id);
+        const result = await db.execute({
+            sql: "UPDATE clients SET name = ?, document = ?, contact = ?, address = ? WHERE id = ?",
+            args: [name, document, contact, address, id]
+        });
 
-        if (info.changes === 0) {
+        if (result.rowsAffected === 0) {
             throw createError({
                 statusCode: 404,
                 statusMessage: "Not Found",
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
             message: "Client updated successfully",
         };
     } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
                 statusMessage: "Conflict",

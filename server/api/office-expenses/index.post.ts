@@ -12,16 +12,17 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const stmt = db.prepare(`
-            INSERT INTO office_expenses (description, amount, due_date, is_recurrent)
-            VALUES (?, ?, ?, ?)
-        `);
-        
-        const result = stmt.run(description, amount, due_date, is_recurrent ? 1 : 0);
+        const result = await db.execute({
+            sql: `
+                INSERT INTO office_expenses (description, amount, due_date, is_recurrent)
+                VALUES (?, ?, ?, ?)
+            `,
+            args: [description, amount, due_date, is_recurrent ? 1 : 0]
+        });
 
         return {
             success: true,
-            id: result.lastInsertRowid
+            id: Number(result.lastInsertRowid)
         };
     } catch (error: any) {
         throw createError({

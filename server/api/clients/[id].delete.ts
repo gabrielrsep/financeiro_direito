@@ -1,6 +1,6 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, "id");
 
     if (!id) {
@@ -12,10 +12,12 @@ export default defineEventHandler((event) => {
     }
 
     try {
-        const stmt = db.prepare("DELETE FROM clients WHERE id = ?");
-        const info = stmt.run(id);
+        const result = await db.execute({
+            sql: "DELETE FROM clients WHERE id = ?",
+            args: [id]
+        });
 
-        if (info.changes === 0) {
+        if (result.rowsAffected === 0) {
             throw createError({
                 statusCode: 404,
                 statusMessage: "Not Found",

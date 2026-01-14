@@ -1,28 +1,17 @@
-import Database from "better-sqlite3";
-import { readFileSync, existsSync } from "fs";
-
+import { createClient } from "@libsql/client";
+import { existsSync } from "fs";
 import { resolve } from "path";
 
-const databaseFolder = resolve("server", "database");
-const databasePath = process.env.DATABASE_PATH || resolve(databaseFolder, "db.sqlite");
-const sqlFolder = resolve(databaseFolder, "sql");
+const { DATABASE_URL } = process.env;
+
+const db = createClient({
+    url: DATABASE_URL!,
+});
+
+const databasePath = DATABASE_URL!.replace("file:", "");
 const firstInit = !existsSync(databasePath);
+const sqlFolder = resolve(databasePath, "sql");
 
-const db = new Database(databasePath);
-
-if(firstInit) {
-    const schemaPath = resolve(sqlFolder, "schema.sql");
-    const schema = readFileSync(schemaPath).toString();
-    db.exec(schema);
-
-    const seedPath = resolve(sqlFolder, "seed.sql");
-    if(existsSync(seedPath)) {
-        const seed = readFileSync(seedPath).toString();
-        db.exec(seed);
-    }
-
-}
-
-export { db }
+export { db, firstInit, sqlFolder };
 
 

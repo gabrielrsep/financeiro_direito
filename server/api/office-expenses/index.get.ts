@@ -1,6 +1,6 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const page = parseInt(query.page as string) || 1;
     const limit = parseInt(query.limit as string) || 10;
@@ -32,13 +32,18 @@ export default defineEventHandler((event) => {
         sql += " ORDER BY is_recurrent DESC, CASE WHEN status = 'Pendente' THEN 0 ELSE 1 END, due_date ASC LIMIT ? OFFSET ?";
 
         // Count total
-        const countStmt = db.prepare(countSql);
-        const totalResult = params.length > 0 ? countStmt.get(...params) : countStmt.get();
-        const total = totalResult ? (totalResult as any).total : 0;
+        const totalResult = await db.execute({
+            sql: countSql,
+            args: params
+        });
+        const total = totalResult.rows[0] ? Number(totalResult.rows[0].total) : 0;
 
         // Get data
-        const stmt = db.prepare(sql);
-        const expenses = stmt.all(...params, limit, offset);
+        const dataResult = await db.execute({
+            sql,
+            args: [...params, limit, offset]
+        });
+        const expenses = dataResult.rows;
 
         const totalPages = Math.ceil(total / limit);
 

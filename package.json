@@ -10,8 +10,9 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.0",
+    "@libsql/client": "^0.17.0",
     "clsx": "^2.1.1",
+    "libsql": "^0.5.22",
     "lucide-vue-next": "^0.562.0",
     "nuxt": "^4.2.2",
     "tailwind-merge": "^3.4.0",
@@ -21,6 +22,6 @@
   "devDependencies": {
     "@nuxtjs/color-mode": "^4.0.0",
     "@nuxtjs/tailwindcss": "^6.14.0",
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/node": "^25.0.8"
   }
 }

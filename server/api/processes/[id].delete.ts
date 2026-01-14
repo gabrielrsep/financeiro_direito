@@ -1,7 +1,7 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
-    const id = event.context.params?.id;
+export default defineEventHandler(async (event) => {
+    const id = getRouterParam(event, "id");
 
     if (!id) {
         throw createError({
@@ -12,9 +12,14 @@ export default defineEventHandler((event) => {
     }
 
     try {
-        db.transaction(() => {
+        const tx = await db.transaction("write");
+        try {
             // Get process info before deleting to check if it was 'em_conta'
-            const process = db.prepare("SELECT client_id, value_charged, payment_method FROM processes WHERE id = ?").get(id) as any;
+            const processResult = await tx.execute({
+                sql: "SELECT client_id, value_charged, payment_method FROM processes WHERE id = ?",
+                args: [id]
+            });
+            const process = processResult.rows[0];
 
             if (!process) {
                 throw createError({
@@ -26,28 +31,42 @@ export default defineEventHandler((event) => {
 
             // If it was 'em_conta', adjust client debt
             if (process.payment_method === 'em_conta') {
-                const totalPaid = db.prepare("SELECT SUM(value_paid) as total FROM payments WHERE process_id = ?").get(id) as any;
-                const paidAmount = totalPaid?.total || 0;
+                const totalPaidResult = await tx.execute({
+                    sql: "SELECT SUM(value_paid) as total FROM payments WHERE process_id = ?",
+                    args: [id]
+                });
+                const paidAmount = Number((totalPaidResult.rows[0] as any)?.total || 0);
 
                 // The debt remaining for this process is (value_charged - paidAmount)
                 // We must subtract this from the client's balance
-                const debtToRemove = process.value_charged - paidAmount;
+                const debtToRemove = Number(process.value_charged) - paidAmount;
 
-                db.prepare(`
-                    UPDATE clients 
-                    SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                `).run(debtToRemove, process.client_id);
+                await tx.execute({
+                    sql: `
+                        UPDATE clients 
+                        SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                    `,
+                    args: [debtToRemove, process.client_id]
+                });
             }
 
             // Delete the process (cascades to payments)
-            db.prepare("DELETE FROM processes WHERE id = ?").run(id);
-        })();
+            await tx.execute({
+                sql: "DELETE FROM processes WHERE id = ?",
+                args: [id]
+            });
 
-        return {
-            success: true,
-            message: "Process deleted successfully",
-        };
+            await tx.commit();
+
+            return {
+                success: true,
+                message: "Process deleted successfully",
+            };
+        } catch (error) {
+            await tx.rollback();
+            throw error;
+        }
     } catch (error: any) {
         if (error.statusCode === 404) throw error;
         throw createError({

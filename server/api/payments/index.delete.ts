@@ -13,11 +13,13 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const stmt = db.prepare(`
-            DELETE FROM payments
-            WHERE id = ?
-        `);
-        stmt.run(id);
+        await db.execute({
+            sql: `
+                DELETE FROM payments
+                WHERE id = ?
+            `,
+            args: [id]
+        });
 
         return {
             success: true,

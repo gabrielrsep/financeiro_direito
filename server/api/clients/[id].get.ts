@@ -1,6 +1,6 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, "id");
 
     if (!id) {
@@ -12,8 +12,11 @@ export default defineEventHandler((event) => {
     }
 
     try {
-        const clientStmt = db.prepare("SELECT * FROM clients WHERE id = ?");
-        const client: any = clientStmt.get(id);
+        const clientResult = await db.execute({
+            sql: "SELECT * FROM clients WHERE id = ?",
+            args: [id]
+        });
+        const client = clientResult.rows[0];
 
         if (!client) {
             throw createError({
@@ -24,32 +27,41 @@ export default defineEventHandler((event) => {
         }
 
         // Get processes for this client
-        const processesStmt = db.prepare(`
-            SELECT * FROM processes 
-            WHERE client_id = ? AND deleted_at IS NULL 
-            ORDER BY created_at DESC
-        `);
-        const processes = processesStmt.all(id);
+        const processesResult = await db.execute({
+            sql: `
+                SELECT * FROM processes 
+                WHERE client_id = ? AND deleted_at IS NULL 
+                ORDER BY created_at DESC
+            `,
+            args: [id]
+        });
+        const processes = processesResult.rows;
 
         // Get financial summary
         // 1. Total Charged (from processes)
-        const financialStmt = db.prepare(`
-            SELECT 
-                COALESCE(SUM(value_charged), 0) as total_charged
-            FROM processes 
-            WHERE client_id = ? AND deleted_at IS NULL
-        `);
-        const { total_charged } = financialStmt.get(id) as any;
+        const financialResult = await db.execute({
+            sql: `
+                SELECT 
+                    COALESCE(SUM(value_charged), 0) as total_charged
+                FROM processes 
+                WHERE client_id = ? AND deleted_at IS NULL
+            `,
+            args: [id]
+        });
+        const total_charged = Number((financialResult.rows[0] as any).total_charged);
 
         // 2. Total Paid (from payments linked to these processes)
-        const paymentsStmt = db.prepare(`
-            SELECT 
-                COALESCE(SUM(pnt.value_paid), 0) as total_paid
-            FROM payments pnt
-            JOIN processes p ON pnt.process_id = p.id
-            WHERE p.client_id = ? AND p.deleted_at IS NULL AND pnt.status = 'Pago'
-        `);
-        const { total_paid } = paymentsStmt.get(id) as any;
+        const paymentsResult = await db.execute({
+            sql: `
+                SELECT 
+                    COALESCE(SUM(pnt.value_paid), 0) as total_paid
+                FROM payments pnt
+                JOIN processes p ON pnt.process_id = p.id
+                WHERE p.client_id = ? AND p.deleted_at IS NULL AND pnt.status = 'Pago'
+            `,
+            args: [id]
+        });
+        const total_paid = Number((paymentsResult.rows[0] as any).total_paid);
 
         const balance = total_charged - total_paid;
 

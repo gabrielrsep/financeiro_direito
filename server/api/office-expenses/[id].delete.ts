@@ -1,18 +1,26 @@
 import { db } from "../../database/connection";
 
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id');
 
-    try {
-        const stmt = db.prepare(`
-            UPDATE office_expenses 
-            SET deleted_at = CURRENT_TIMESTAMP 
-            WHERE id = ? AND deleted_at IS NULL
-        `);
-        
-        const result = stmt.run(id);
+    if (!id) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: "ID é obrigatório.",
+        });
+    }
 
-        if (result.changes === 0) {
+    try {
+        const result = await db.execute({
+            sql: `
+                UPDATE office_expenses 
+                SET deleted_at = CURRENT_TIMESTAMP 
+                WHERE id = ? AND deleted_at IS NULL
+            `,
+            args: [id]
+        });
+
+        if (result.rowsAffected === 0) {
             throw createError({
                 statusCode: 404,
                 statusMessage: "Gasto não encontrado.",

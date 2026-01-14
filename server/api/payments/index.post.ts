@@ -13,48 +13,49 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        // Start a transaction
-        const transaction = db.transaction(() => {
+        const tx = await db.transaction("write");
+        try {
+            let lastId: number | string;
             if (id) {
                 // Update existing payment (e.g., marking a pending installment as paid)
-                const stmtUpdate = db.prepare(`
-                    UPDATE payments 
-                    SET value_paid = ?, payment_date = ?, status = ?, due_date = ?
-                    WHERE id = ?
-                `);
-                stmtUpdate.run(value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date, id);
-                return id;
+                await tx.execute({
+                    sql: `
+                        UPDATE payments 
+                        SET value_paid = ?, payment_date = ?, status = ?, due_date = ?
+                        WHERE id = ?
+                    `,
+                    args: [value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date, id]
+                });
+                lastId = id;
             } else {
                 // 1. Insert payment record
-                const stmtPayment = db.prepare(`
-                    INSERT INTO payments (process_id, value_paid, payment_date, status, due_date)
-                    VALUES (?, ?, ?, ?, ?)
-                `);
-                const info = stmtPayment.run(
-                    process_id, 
-                    value_paid, 
-                    payment_date || new Date().toISOString(), 
-                    status || 'Pago',
-                    due_date
-                );
-
-                return info.lastInsertRowid;
+                const result = await tx.execute({
+                    sql: `
+                        INSERT INTO payments (process_id, value_paid, payment_date, status, due_date)
+                        VALUES (?, ?, ?, ?, ?)
+                    `,
+                    args: [process_id, value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date]
+                });
+                lastId = Number(result.lastInsertRowid);
             }
-        });
 
-        const lastId = transaction();
+            await tx.commit();
 
-        return {
-            success: true,
-            data: {
-                id: lastId,
-                process_id,
-                value_paid,
-                payment_date,
-                status,
-                due_date
-            },
-        };
+            return {
+                success: true,
+                data: {
+                    id: lastId,
+                    process_id,
+                    value_paid,
+                    payment_date,
+                    status,
+                    due_date
+                },
+            };
+        } catch (error) {
+            await tx.rollback();
+            throw error;
+        }
     } catch (error: any) {
         throw createError({
             statusCode: 500,

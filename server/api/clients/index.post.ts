@@ -13,15 +13,15 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const stmt = db.prepare(
-            "INSERT INTO clients (name, document, contact, address) VALUES (?, ?, ?, ?)"
-        );
-        const info = stmt.run(name, document, contact, address);
+        const result = await db.execute({
+            sql: "INSERT INTO clients (name, document, contact, address) VALUES (?, ?, ?, ?)",
+            args: [name, document, contact, address]
+        });
 
         return {
             success: true,
             data: {
-                id: info.lastInsertRowid,
+                id: Number(result.lastInsertRowid),
                 name,
                 document,
                 contact,
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
             },
         };
     } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
                 statusMessage: "Conflict",

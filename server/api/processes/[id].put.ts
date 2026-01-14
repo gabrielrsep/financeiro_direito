@@ -14,92 +14,128 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const checkStmt = db.prepare("SELECT id FROM processes WHERE id = ?");
-        const exists = checkStmt.get(id);
-
-        if (!exists) {
-            throw createError({
-                statusCode: 404,
-                statusMessage: "Not Found",
-                message: "Process not found",
+        const tx = await db.transaction("write");
+        try {
+            const checkResult = await tx.execute({
+                sql: "SELECT id FROM processes WHERE id = ?",
+                args: [id]
             });
-        }
 
-        db.transaction(() => {
+            if (checkResult.rows.length === 0) {
+                throw createError({
+                    statusCode: 404,
+                    statusMessage: "Not Found",
+                    message: "Process not found",
+                });
+            }
+
             // Get old values to calculate balance adjustment
-            const oldProcessStmt = db.prepare("SELECT value_charged, payment_method, client_id FROM processes WHERE id = ?");
-            const oldProcess = oldProcessStmt.get(id) as any;
+            const oldProcessResult = await tx.execute({
+                sql: "SELECT value_charged, payment_method, client_id FROM processes WHERE id = ?",
+                args: [id]
+            });
+            const oldProcess = oldProcessResult.rows[0] as any;
 
-            const stmt = db.prepare(`
-                UPDATE processes 
-                SET client_id = ?, 
-                    process_number = ?, 
-                    tribunal = ?, 
-                    target = ?,
-                    description = ?, 
-                    status = ?, 
-                    value_charged = ?,
-                    payment_method = ?
-                WHERE id = ?
-            `);
-
-            stmt.run(client_id, process_number, tribunal, target, description, status, value_charged, payment_method, id);
+            await tx.execute({
+                sql: `
+                    UPDATE processes 
+                    SET client_id = ?, 
+                        process_number = ?, 
+                        tribunal = ?, 
+                        target = ?,
+                        description = ?, 
+                        status = ?, 
+                        value_charged = ?,
+                        payment_method = ?
+                    WHERE id = ?
+                `,
+                args: [client_id, process_number, tribunal, target, description, status, value_charged, payment_method, id]
+            });
 
             // Adjust client balance
-            const handleBalanceAdjustment = (pId: number, oldMethod: string, newMethod: string, oldClientId: number, newClientId: number, oldValue: number, newValue: number) => {
-                const totalPaid = db.prepare("SELECT SUM(value_paid) as total FROM payments WHERE process_id = ?").get(pId) as any;
-                const paidAmount = totalPaid?.total || 0;
+            const handleBalanceAdjustment = async (pId: number, oldMethod: string, newMethod: string, oldClientId: number, newClientId: number, oldValue: number, newValue: number) => {
+                const totalPaidResult = await tx.execute({
+                    sql: "SELECT SUM(value_paid) as total FROM payments WHERE process_id = ?",
+                    args: [pId]
+                });
+                const paidAmount = Number((totalPaidResult.rows[0] as any)?.total || 0);
 
                 if (oldClientId !== newClientId) {
                     // Remove impact from old client
                     if (oldMethod === 'em_conta') {
-                        const oldImpact = oldValue - paidAmount;
-                        db.prepare("UPDATE clients SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(oldImpact, oldClientId);
+                        const oldImpact = Number(oldValue) - paidAmount;
+                        await tx.execute({
+                            sql: "UPDATE clients SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            args: [oldImpact, oldClientId]
+                        });
                     }
                     // Add impact to new client
                     if (newMethod === 'em_conta') {
-                        db.prepare("UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newValue, newClientId);
+                        await tx.execute({
+                            sql: "UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            args: [newValue, newClientId]
+                        });
                     }
                     // Delete payments if new method is not 'em_conta'
                     if (oldMethod === 'em_conta' && newMethod !== 'em_conta') {
-                        db.prepare("DELETE FROM payments WHERE process_id = ?").run(pId);
+                        await tx.execute({
+                            sql: "DELETE FROM payments WHERE process_id = ?",
+                            args: [pId]
+                        });
                     }
                 } else {
                     if (oldMethod === 'em_conta' && newMethod === 'em_conta') {
-                        const delta = newValue - oldValue;
+                        const delta = Number(newValue) - Number(oldValue);
                         if (delta !== 0) {
-                            db.prepare("UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(delta, newClientId);
+                            await tx.execute({
+                                sql: "UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                args: [delta, newClientId]
+                            });
                         }
                     } else if (oldMethod !== 'em_conta' && newMethod === 'em_conta') {
-                        db.prepare("UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newValue, newClientId);
+                        await tx.execute({
+                            sql: "UPDATE clients SET balance = balance + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            args: [newValue, newClientId]
+                        });
                     } else if (oldMethod === 'em_conta' && newMethod !== 'em_conta') {
-                        const impactToRemove = oldValue - paidAmount;
-                        db.prepare("UPDATE clients SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(impactToRemove, newClientId);
-                        db.prepare("DELETE FROM payments WHERE process_id = ?").run(pId);
+                        const impactToRemove = Number(oldValue) - paidAmount;
+                        await tx.execute({
+                            sql: "UPDATE clients SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                            args: [impactToRemove, newClientId]
+                        });
+                        await tx.execute({
+                            sql: "DELETE FROM payments WHERE process_id = ?",
+                            args: [pId]
+                        });
                     }
                 }
             };
 
-            handleBalanceAdjustment(Number(id), oldProcess.payment_method, payment_method, oldProcess.client_id, client_id, oldProcess.value_charged, value_charged);
-        })();
+            await handleBalanceAdjustment(Number(id), oldProcess.payment_method, payment_method, oldProcess.client_id, client_id, oldProcess.value_charged, value_charged);
 
-        return {
-            success: true,
-            data: {
-                id,
-                client_id,
-                process_number,
-                tribunal,
-                target,
-                description,
-                status,
-                value_charged,
-                payment_method,
-                add_to_client_account
-            },
-        };
+            await tx.commit();
+
+            return {
+                success: true,
+                data: {
+                    id,
+                    client_id,
+                    process_number,
+                    tribunal,
+                    target,
+                    description,
+                    status,
+                    value_charged,
+                    payment_method,
+                    add_to_client_account
+                },
+            };
+        } catch (error) {
+            await tx.rollback();
+            throw error;
+        }
     } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
                 statusMessage: "Conflict",
