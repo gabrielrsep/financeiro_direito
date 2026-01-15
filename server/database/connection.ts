@@ -10,6 +10,10 @@ if (NODE_ENV === "production") {
     authToken = DATABASE_AUTH_TOKEN!;
 }
 
+
+console.log("Database URL: ", DATABASE_URL);
+console.log("Database auth token: ", DATABASE_AUTH_TOKEN);
+console.log("Node env: ", NODE_ENV);
 const db = createClient({
     url: DATABASE_URL!,
     authToken,
