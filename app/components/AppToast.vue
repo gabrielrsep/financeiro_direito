@@ -4,14 +4,14 @@ export type ToastType = 'success' | 'error' | 'info'
 import { reactive } from 'vue'
 
 const toastState = reactive({
-    add: (message: string, type: ToastType) => {}
+    add: (message: string, type: ToastType, permanent: boolean = false) => {}
 })
 
 export const useToast = () => {
     return {
-        success: (message: string) => toastState.add(message, 'success'),
-        error: (message: string) => toastState.add(message, 'error'),
-        info: (message: string) => toastState.add(message, 'info'),
+        success: (message: string, permanent: boolean = false) => toastState.add(message, 'success', permanent),
+        error: (message: string, permanent: boolean = false) => toastState.add(message, 'error', permanent),
+        info: (message: string, permanent: boolean = false) => toastState.add(message, 'info', permanent),
     }
 }
 </script>
@@ -24,15 +24,19 @@ interface Toast {
   id: number
   message: string
   type: ToastType
+  permanent: boolean
 }
+
 
 const toasts = ref<Toast[]>([])
 let nextId = 1
 
-const add = (message: string, type: ToastType = 'info') => {
+const add = (message: string, type: ToastType = 'info', permanent: boolean = false) => {
   const id = nextId++
-  toasts.value.push({ id, message, type })
-  setTimeout(() => remove(id), 3000)
+  toasts.value.push({ id, message, type, permanent })
+  if (!permanent) {
+    setTimeout(() => remove(id), 3000)
+  }
 }
 
 const remove = (id: number) => {
@@ -41,6 +45,10 @@ const remove = (id: number) => {
     toasts.value.splice(index, 1)
   }
 }
+
+onMounted(() => {
+  toastState.add = add
+})
 
 // Expose methods to be used via template ref or provide/inject if preferred globally
 // For simplicity in this Nuxt app setup without a dedicated store yet, 
@@ -79,12 +87,15 @@ defineExpose({ add, remove })
             <Info v-if="toast.type === 'info'" class="h-5 w-5 text-blue-500" />
         </div>
         <div class="flex-1 mr-2">{{ toast.message }}</div>
-        <button @click="remove(toast.id)" class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors">
+        <button 
+          v-if="toast.permanent"
+          @click="remove(toast.id)" 
+          class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+          title="Fechar"
+        >
             <X class="h-4 w-4" />
         </button>
       </div>
     </TransitionGroup>
   </div>
-  <!-- Hidden element to bind the global state handler -->
-  <div class="hidden" :ref="(el: any) => { if(el) toastState.add = add }"></div>
 </template>

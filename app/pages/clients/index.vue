@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
+import { useToast } from '../../components/AppToast.vue'
+import ConfirmModal from '../../components/ConfirmModal.vue'
 
 interface Client {
   id?: number
@@ -98,19 +100,32 @@ const saveClient = async () => {
     }
     await refresh()
     closeModal()
+    useToast().success('Cliente salvo com sucesso')
   } catch (error: any) {
-    alert(error.message || 'Erro ao salvar cliente')
+    useToast().error(error.message || 'Erro ao salvar cliente', true)
   }
 }
 
-const deleteClient = async (id: number | undefined) => {
+const deleteClient = (id: number | undefined) => {
   if (!id) return
-  if (!confirm('Tem certeza que deseja excluir este cliente?')) return
+  clientToDeleteId.value = id
+  isDeleteModalOpen.value = true
+}
+
+const isDeleteModalOpen = ref(false)
+const clientToDeleteId = ref<number | null>(null)
+
+const confirmDeleteClient = async () => {
+  if (!clientToDeleteId.value) return
   try {
-    await $fetch(`/api/clients/${id}`, { method: 'DELETE' })
+    await $fetch(`/api/clients/${clientToDeleteId.value}`, { method: 'DELETE' })
     await refresh()
+    useToast().success('Cliente excluído com sucesso')
   } catch (error) {
-    alert('Erro ao excluir cliente')
+    useToast().error('Erro ao excluir cliente', true)
+  } finally {
+    isDeleteModalOpen.value = false
+    clientToDeleteId.value = null
   }
 }
 </script>
@@ -278,5 +293,14 @@ const deleteClient = async (id: number | undefined) => {
         </div>
       </div>
     </div>
+    <ConfirmModal 
+      :isOpen="isDeleteModalOpen"
+      title="Excluir Cliente"
+      message="Tem certeza que deseja excluir este cliente? Esta ação não poderá ser desfeita."
+      confirmLabel="Excluir"
+      variant="danger"
+      @close="isDeleteModalOpen = false"
+      @confirm="confirmDeleteClient"
+    />
   </div>
 </template>

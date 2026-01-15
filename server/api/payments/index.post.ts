@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
                         SET value_paid = ?, payment_date = ?, status = ?, due_date = ?
                         WHERE id = ?
                     `,
-                    args: [value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date, id]
+                    args: [value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date ?? null, id]
                 });
                 lastId = id;
             } else {
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
                         INSERT INTO payments (process_id, value_paid, payment_date, status, due_date)
                         VALUES (?, ?, ?, ?, ?)
                     `,
-                    args: [process_id, value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date]
+                    args: [process_id, value_paid, payment_date || new Date().toISOString(), status || 'Pago', due_date ?? null]
                 });
                 lastId = Number(result.lastInsertRowid);
             }
@@ -57,6 +57,7 @@ export default defineEventHandler(async (event) => {
             throw error;
         }
     } catch (error: any) {
+        console.error(error);
         throw createError({
             statusCode: 500,
             statusMessage: "Internal Server Error",

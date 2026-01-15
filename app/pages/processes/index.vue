@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
 import ClientSelectionModal from '../../components/ClientSelectionModal.vue'
+import ConfirmModal from '../../components/ConfirmModal.vue'
 import { useToast } from '../../components/AppToast.vue'
 
 interface Client {
@@ -168,15 +169,26 @@ const saveProcess = async () => {
     }
 }
 
-const deleteProcess = async (id: number | undefined) => {
+const deleteProcess = (id: number | undefined) => {
     if (!id) return
-    if (!confirm('Tem certeza que deseja excluir este processo?')) return
+    processToDeleteId.value = id
+    isDeleteModalOpen.value = true
+}
+
+const isDeleteModalOpen = ref(false)
+const processToDeleteId = ref<number | null>(null)
+
+const confirmDeleteProcess = async () => {
+    if (!processToDeleteId.value) return
     try {
-        await $fetch(`/api/processes/${id}`, { method: 'DELETE' as any })
+        await $fetch(`/api/processes/${processToDeleteId.value}`, { method: 'DELETE' as any })
         await refreshProcesses()
-        toast.success('Processo excluído com sucesso')
+        useToast().success('Processo excluído com sucesso')
     } catch (error) {
-        toast.error('Erro ao excluir processo')
+        useToast().error('Erro ao excluir processo')
+    } finally {
+        isDeleteModalOpen.value = false
+        processToDeleteId.value = null
     }
 }
 
@@ -444,6 +456,16 @@ const formatCurrency = (value: number) => {
             :isOpen="isClientModalOpen" 
             @close="isClientModalOpen = false" 
             @select="onClientSelected" 
+        />
+
+        <ConfirmModal 
+            :isOpen="isDeleteModalOpen"
+            title="Excluir Processo"
+            message="Tem certeza que deseja excluir este processo? Esta ação não poderá ser desfeita."
+            confirmLabel="Excluir"
+            variant="danger"
+            @close="isDeleteModalOpen = false"
+            @confirm="confirmDeleteProcess"
         />
     </div>
 </template>

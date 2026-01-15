@@ -49,14 +49,15 @@ const savePayment = async () => {
                 id: props.paymentId,
                 process_id: props.processId,
                 value_paid: valuePaid.value,
-                payment_date: paymentDate.value
+                payment_date: paymentDate.value,
+                status: 'Pago'
             }
         })
         emit('saved')
         closeModal()
     } catch (error) {
         console.error('Erro ao salvar pagamento:', error)
-        alert('Erro ao salvar pagamento')
+        useToast().error('Erro ao salvar pagamento', true)
     }
 }
 

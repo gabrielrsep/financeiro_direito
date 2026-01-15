@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Search, ChevronLeft, ChevronRight, Building2, Plus, Trash2, CheckCircle2, Repeat } from 'lucide-vue-next'
-import OfficeExpenseModal from '../../components/OfficeExpenseModal.vue'
-import { useToast } from '../../components/AppToast.vue'
+import OfficeExpenseModal from '~/components/OfficeExpenseModal.vue'
+import ConfirmModal from '~/components/ConfirmModal.vue'
+import { useToast } from '~/components/AppToast.vue'
 
 interface OfficeExpense {
     id: number
@@ -81,17 +82,27 @@ const markAsPaid = async (expense: OfficeExpense) => {
     }
 }
 
-const deleteExpense = async (expense: OfficeExpense) => {
-    if (!confirm('Tem certeza que deseja excluir este gasto?')) return
+const deleteExpense = (expense: OfficeExpense) => {
+    expenseToDeleteId.value = expense.id
+    isDeleteModalOpen.value = true
+}
 
+const isDeleteModalOpen = ref(false)
+const expenseToDeleteId = ref<number | null>(null)
+
+const confirmDeleteExpense = async () => {
+    if (!expenseToDeleteId.value) return
     try {
-        await $fetch(`/api/office-expenses/${expense.id}`, {
+        await $fetch(`/api/office-expenses/${expenseToDeleteId.value}`, {
             method: 'DELETE'
         })
         refreshExpenses()
         toast.success('Gasto excluído com sucesso')
     } catch (error) {
         toast.error('Erro ao excluir gasto')
+    } finally {
+        isDeleteModalOpen.value = false
+        expenseToDeleteId.value = null
     }
 }
 
@@ -210,6 +221,16 @@ const formatDate = (date: string) => {
             :expense="selectedExpense"
             @close="isModalOpen = false"
             @saved="onSaved"
+        />
+
+        <ConfirmModal 
+            :isOpen="isDeleteModalOpen"
+            title="Excluir Gasto"
+            message="Tem certeza que deseja excluir este gasto? Esta ação não poderá ser desfeita."
+            confirmLabel="Excluir"
+            variant="danger"
+            @close="isDeleteModalOpen = false"
+            @confirm="confirmDeleteExpense"
         />
     </div>
 </template>

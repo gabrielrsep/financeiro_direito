@@ -8,8 +8,6 @@ import {
   Clock,
   CalendarDays
 } from 'lucide-vue-next'
-import PaymentModal from '../components/PaymentModal.vue'
-import { useToast } from '../components/AppToast.vue'
 
 interface Stats {
   kpis: {
@@ -26,24 +24,16 @@ useHead({
   title: 'Lei & $ - Dashboard'
 })
 
-const { data: stats, pending, refresh: refreshStats } = useFetch<Stats>('/api/dashboard/stats')
+const { data: stats, pending } = useFetch<Stats>('/api/dashboard/stats')
 
-const { data: scheduledData, refresh: refreshScheduled } = useFetch<any>('/api/gastos/scheduled', {
+const { data: scheduledData } = useFetch<any>('/api/gastos/scheduled', {
     params: {
         all: 'true'
     }
 })
 
+
 const scheduledPayments = computed(() => scheduledData.value?.data || [])
-
-const toast = useToast()
-const isPaymentModalOpen = ref(false)
-
-const onPaymentSaved = () => {
-    refreshStats()
-    refreshScheduled()
-    toast.success('Pagamento registrado com sucesso')
-}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
