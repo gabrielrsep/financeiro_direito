@@ -1,41 +1,21 @@
+import { getFirstRow, runSQLFile } from "~~/server/database/utils";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async () => {
+  type Result = {
+    total: number;
+  };
+
   try {
-    const totalReceivableResult = await db.execute(`
-      SELECT
-	(
-	SELECT
-		SUM(value_charged)
-	FROM
-		processes
-	WHERE
-		payment_method = 'em_conta') 
-    - 
-    (
-	SELECT
-		SUM(pa.value_paid)
-	FROM
-		payments pa
-	INNER JOIN processes pr ON
-		pa.process_id = pr.id
-	WHERE
-		pr.payment_method = 'em_conta') 
-AS total;
-    `);
-    const totalReceivable = totalReceivableResult.rows[0];
+    const totalReceivableResult = await runSQLFile(db, "stats/totalReceivable.sql");
+    const totalReceivable = getFirstRow<Result>(totalReceivableResult);
 
     const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo'");
-    const activeProcesses = activeProcessesResult.rows[0];
+    const activeProcesses = getFirstRow<Result>(activeProcessesResult);
 
     // Monthly revenue: sum of payments in the current month
-    const monthlyRevenueResult = await db.execute(`
-      SELECT SUM(value_paid) as total 
-      FROM payments 
-      WHERE strftime('%m', payment_date) = strftime('%m', 'now') 
-      AND strftime('%Y', payment_date) = strftime('%Y', 'now')
-    `);
-    const monthlyRevenue = monthlyRevenueResult.rows[0];
+    const monthlyRevenueResult = await runSQLFile(db, "stats/monthlyRevenue.sql");
+    const monthlyRevenue = getFirstRow<Result>(monthlyRevenueResult)
 
     // Pending expenses: sum of pending office expenses for the current month
     const pendingExpensesResult = await db.execute(`
@@ -45,7 +25,7 @@ AS total;
       AND strftime('%m', due_date) = strftime('%m', 'now') 
       AND strftime('%Y', due_date) = strftime('%Y', 'now')
     `);
-    const pendingExpenses = pendingExpensesResult.rows[0];
+    const pendingExpenses = getFirstRow(pendingExpensesResult);
 
     // Recent processes
     const recentProcessesResult = await db.execute(`
@@ -56,6 +36,7 @@ AS total;
       LIMIT 5
     `);
     const recentProcesses = recentProcessesResult.rows;
+    
 
     // Recent payments
     const recentPaymentsResult = await db.execute(`
@@ -70,8 +51,8 @@ AS total;
 
     return {
       kpis: {
-        totalReceivable: Number((totalReceivable as any)?.total || 0),
-        activeProcesses: Number((activeProcesses as any)?.total || 0),
+        totalReceivable: totalReceivable.total || 0,
+        activeProcesses: activeProcesses.total || 0,
         monthlyRevenue: Number((monthlyRevenue as any)?.total || 0),
         pendingExpenses: Number((pendingExpenses as any)?.total || 0),
       },

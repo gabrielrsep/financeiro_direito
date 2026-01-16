@@ -41,7 +41,7 @@ export default defineEventHandler(async (event) => {
             params.push(searchParam, searchParam);
         }
 
-        sql += " ORDER BY pa.due_date ASC";
+        sql += " ORDER BY pa.due_date ASC LIMIT 5";
 
         const result = await db.execute({
             sql,
