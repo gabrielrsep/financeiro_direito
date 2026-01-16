@@ -324,7 +324,7 @@ const formatCurrency = (value: number) => {
             @click.self="closeModal">
             <!-- Modal Content -->
             <div
-                class="bg-white dark:bg-slate-900 rounded-lg shadow-lg w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
+                class="bg-white dark:bg-slate-900 rounded-lg shadow-lg w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800">
                 <div class="flex flex-col space-y-1.5 p-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex justify-between items-center">
                         <h3 class="font-semibold leading-none tracking-tight text-lg text-slate-900 dark:text-white">
@@ -339,7 +339,7 @@ const formatCurrency = (value: number) => {
                     </p>
                 </div>
 
-                <div class="p-6 space-y-4">
+                <div class="p-6 space-y-4 flex-1 overflow-y-auto overscroll-contain">
                     <div class="grid gap-2">
                         <label class="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">
                             Cliente

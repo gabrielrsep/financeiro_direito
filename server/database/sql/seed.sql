@@ -1,5 +1,13 @@
 -- Seed Data for Development
 
+-- Insert Offices
+INSERT INTO offices (name) VALUES ('Escritório Principal');
+
+-- Insert Users
+-- Password is 'admin123'
+-- INSERT INTO users (office_id, username, email, password, name) VALUES
+-- (1, 'admin', 'admin@escritorio.com.br', '$2b$10$r8jfUQOU4HM6ivySi3Ms/OQL3wH19LJf/DopI3btgtpm/AuCm97A6', 'Administrador');
+
 -- Insert Clients
 INSERT INTO clients (name, document, contact, address) VALUES
 ('Empresa A Ltda', '12.345.678/0001-90', 'contato@empresaa.com.br', 'Av. Paulista, 1000 - São Paulo, SP'),

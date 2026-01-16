@@ -6,8 +6,13 @@ import {
   ArrowUpRight,
   TrendingUp,
   Clock,
-  CalendarDays
+  CalendarDays,
+  Building2
 } from 'lucide-vue-next'
+import { useAuthStore } from '~/stores/auth'
+
+
+const authStore = useAuthStore()
 
 interface Stats {
   kpis: {
@@ -50,7 +55,7 @@ const kpis = computed(() => [
   {
     title: 'Total a Receber',
     value: formatCurrency(stats.value?.kpis.totalReceivable || 0),
-    description: 'Saldo acumulado de clientes',
+    description: 'Total dos honorários em relação aos valores a pagar',
     icon: DollarSign,
     color: 'text-amber-600'
   },
@@ -80,7 +85,11 @@ const kpis = computed(() => [
 
 <template>
   <div class="space-y-8 pb-10">
-    <div>
+    <div class="flex flex-col gap-1">
+      <div v-if="authStore.user?.office_name" class="flex items-center gap-2 text-amber-600 dark:text-amber-500 font-semibold tracking-wide uppercase text-xs mb-1">
+        <Building2 class="h-4 w-4" />
+        <span>{{ authStore.user.office_name }}</span>
+      </div>
       <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">Dashboard</h1>
       <p class="text-slate-500 dark:text-slate-400">Visão geral do desempenho e atividades do escritório.</p>
     </div>

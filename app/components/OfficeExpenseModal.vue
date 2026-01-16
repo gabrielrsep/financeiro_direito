@@ -67,7 +67,7 @@ const saveExpense = async () => {
     <div v-if="isOpen"
         class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
         @click.self="closeModal">
-        <div class="bg-white dark:bg-slate-900 rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800 transition-colors">
+        <div class="bg-white dark:bg-slate-900 rounded-lg shadow-lg w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800 transition-colors">
             <div class="flex flex-col space-y-1.5 p-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex justify-between items-center">
                     <h3 class="font-semibold leading-none tracking-tight text-lg text-slate-900 dark:text-white">
@@ -82,7 +82,7 @@ const saveExpense = async () => {
                 </p>
             </div>
 
-            <div class="p-6 space-y-4">
+            <div class="p-6 space-y-4 flex-1 overflow-y-auto overscroll-contain">
                 <div class="grid gap-2">
                     <label for="description" class="text-sm font-medium leading-none text-slate-900 dark:text-white">
                         Descrição

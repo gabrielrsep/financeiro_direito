@@ -10,20 +10,17 @@ export default defineNitroPlugin(async () => {
         return
     }
 
-    try {
-        sqlTranspile()
-        console.log('SQL transpiled successfully')
-    } catch (error) {
-        console.error('Failed to transpile SQL', error)
-    }
-
     const { db } = await import("../database/connection");
 
     if (firstInit) {
         console.log("Initializing database for the first time...");
 
-        const schema = await import("../database/sql/schema");
-        db.executeMultiple(schema.default);
+        try {
+            const schema = await import("../database/sql/schema");
+            db.executeMultiple(schema.default);
+        } catch (error) {
+            console.error('Failed to apply schema', JSON.stringify(error))
+        }
 
         console.log("Database schema applied.");
 
