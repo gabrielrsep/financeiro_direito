@@ -1,5 +1,7 @@
-import { getFirstRow, runSQLFile } from "~~/server/database/utils";
-import { db } from "../../database/connection";
+import { getFirstRow } from "~~/server/database/utils";
+import { db } from "~~/server/database/connection";
+import totalReceivableSQL from "~~/server/database/sql/stats/totalReceivable";
+import monthlyRevenueSQL from "~~/server/database/sql/stats/monthlyRevenue";
 
 export default defineEventHandler(async () => {
   type Result = {
@@ -7,14 +9,14 @@ export default defineEventHandler(async () => {
   };
 
   try {
-    const totalReceivableResult = await runSQLFile(db, "stats/totalReceivable.sql");
+    const totalReceivableResult = await db.execute(totalReceivableSQL)
     const totalReceivable = getFirstRow<Result>(totalReceivableResult);
 
     const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo'");
     const activeProcesses = getFirstRow<Result>(activeProcessesResult);
 
     // Monthly revenue: sum of payments in the current month
-    const monthlyRevenueResult = await runSQLFile(db, "stats/monthlyRevenue.sql");
+    const monthlyRevenueResult = await db.execute(monthlyRevenueSQL);
     const monthlyRevenue = getFirstRow<Result>(monthlyRevenueResult)
 
     // Pending expenses: sum of pending office expenses for the current month
