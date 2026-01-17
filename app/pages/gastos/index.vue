@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Search, ChevronLeft, ChevronRight, DollarSign, Wallet, CalendarDays, Trash2 } from 'lucide-vue-next'
 import PaymentModal from '../../components/PaymentModal.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
-import { useToast } from '../../components/AppToast.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface Process {
     id: number
@@ -91,7 +91,7 @@ watch(searchQuery, () => {
     }, 300)
 })
 
-const toast = useToast()
+const toastStore = useToastStore()
 const isPaymentModalOpen = ref(false)
 const selectedProcess = ref<Process | null>(null)
 const selectedPaymentId = ref<number | null>(null)
@@ -114,7 +114,7 @@ const openPaymentModal = (process: any, paymentId: number | null = null, payment
 const onPaymentSaved = () => {
     refreshGastos()
     refreshScheduled()
-    toast.success('Pagamento registrado com sucesso')
+    toastStore.success('Pagamento registrado com sucesso')
 }
 
 const isDeleteModalOpen = ref(false)
@@ -135,10 +135,10 @@ const deletePayment = async () => {
         })
         refreshGastos()
         refreshScheduled()
-        toast.success('Pagamento agendado removido com sucesso')
+        toastStore.success('Pagamento agendado removido com sucesso')
     } catch (error) {
         console.error('Erro ao remover pagamento:', error)
-        toast.error('Erro ao remover pagamento')
+        toastStore.error('Erro ao remover pagamento')
     } finally {
         isDeleteModalOpen.value = false
         paymentToDelete.value = null

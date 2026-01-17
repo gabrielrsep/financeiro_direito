@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { X, DollarSign, Calendar } from 'lucide-vue-next'
-import { useToast } from './AppToast.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface Props {
   isOpen: boolean
   processId: number | null
+  clientId?: number | undefined
   processNumber: string
   clientName: string
   remainingValue: number
   paymentId?: number | null
 }
+
+const toastStore = useToastStore()
 
 const props = defineProps<Props>()
 const emit = defineEmits(['close', 'saved'])
@@ -31,14 +34,14 @@ watch(() => props.isOpen, (isOpen) => {
 })
 
 const savePayment = async () => {
-    if (!props.processId) return
+    if (!props.processId && !props.clientId) return
     if (valuePaid.value <= 0) {
-        useToast().error('O valor pago deve ser maior que zero')
+        toastStore.error('O valor pago deve ser maior que zero')
         return
     }
 
     if (valuePaid.value > props.remainingValue) {
-        useToast().error('O valor pago não pode ser maior que o saldo devedor')
+        toastStore.error('O valor pago não pode ser maior que o saldo devedor')
         return
     }
 
@@ -48,6 +51,7 @@ const savePayment = async () => {
             body: {
                 id: props.paymentId,
                 process_id: props.processId,
+                client_id: props.clientId,
                 value_paid: valuePaid.value,
                 payment_date: paymentDate.value,
                 status: 'Pago'
@@ -57,7 +61,7 @@ const savePayment = async () => {
         closeModal()
     } catch (error) {
         console.error('Erro ao salvar pagamento:', error)
-        useToast().error('Erro ao salvar pagamento', true)
+        toastStore.error('Erro ao salvar pagamento', true)
     }
 }
 
@@ -81,7 +85,7 @@ const formatCurrency = (value: number) => {
                     </button>
                 </div>
                 <p class="text-sm text-slate-500 dark:text-slate-400">
-                    Processo: {{ processNumber }} | Cliente: {{ clientName }}
+                    <span v-if="processNumber">Processo: {{ processNumber }} | </span>Cliente: {{ clientName }}
                 </p>
                 <p class="text-sm font-medium text-amber-600 dark:text-amber-400">
                     Saldo Devedor: {{ formatCurrency(remainingValue) }}

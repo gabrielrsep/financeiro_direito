@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { X, DollarSign, Calendar, FileText, Repeat } from 'lucide-vue-next'
-import { useToast } from './AppToast.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface Props {
   isOpen: boolean
   expense: any | null
 }
+
+const toastStore = useToastStore()
 
 const props = defineProps<Props>()
 const emit = defineEmits(['close', 'saved'])
@@ -36,7 +38,7 @@ const closeModal = () => {
 
 const saveExpense = async () => {
     if (!description.value || !amount.value || !dueDate.value) {
-        useToast().error('Preencha todos os campos obrigatórios')
+        toastStore.error('Preencha todos os campos obrigatórios')
         return
     }
 
@@ -58,7 +60,7 @@ const saveExpense = async () => {
         closeModal()
     } catch (error: any) {
         console.error('Erro ao salvar gasto:', error)
-        useToast().error('Erro ao salvar gasto: ' + (error.message || 'Erro desconhecido'))
+        toastStore.error('Erro ao salvar gasto: ' + (error.message || 'Erro desconhecido'))
     }
 }
 </script>

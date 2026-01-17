@@ -10,7 +10,25 @@ export default defineEventHandler(async () => {
 
   try {
     const totalReceivableResult = await db.execute(totalReceivableSQL)
-    const totalReceivable = getFirstRow<Result>(totalReceivableResult);
+    const totalReceivableApps = getFirstRow<Result>(totalReceivableResult);
+
+    // Calculate Recurrent Receivable
+    // 1. Total expected from recurrent clients
+    const expectedRecurrentResult = await db.execute("SELECT SUM(recurrence_value) as total FROM clients WHERE is_recurrent = 1 AND deleted_at IS NULL");
+    const expectedRecurrent = getFirstRow<Result>(expectedRecurrentResult);
+
+    // 2. Total paid by recurrent clients this month
+    const paidRecurrentResult = await db.execute(`
+      SELECT SUM(value_paid) as total 
+      FROM payments 
+      WHERE client_id IS NOT NULL 
+      AND strftime('%m', payment_date) = strftime('%m', 'now') 
+      AND strftime('%Y', payment_date) = strftime('%Y', 'now')
+    `);
+    const paidRecurrent = getFirstRow<Result>(paidRecurrentResult);
+
+    const recurrentReceivable = (expectedRecurrent.total || 0) - (paidRecurrent.total || 0);
+    const totalReceivable = (totalReceivableApps.total || 0) + (recurrentReceivable > 0 ? recurrentReceivable : 0);
 
     const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo'");
     const activeProcesses = getFirstRow<Result>(activeProcessesResult);
@@ -53,7 +71,7 @@ export default defineEventHandler(async () => {
 
     return {
       kpis: {
-        totalReceivable: totalReceivable.total || 0,
+        totalReceivable: totalReceivable,
         activeProcesses: activeProcesses.total || 0,
         monthlyRevenue: Number((monthlyRevenue as any)?.total || 0),
         pendingExpenses: Number((pendingExpenses as any)?.total || 0),

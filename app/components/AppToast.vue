@@ -1,65 +1,9 @@
-<script lang="ts">
-export type ToastType = 'success' | 'error' | 'info'
-
-import { reactive } from 'vue'
-
-const toastState = reactive({
-    add: (message: string, type: ToastType, permanent: boolean = false) => {}
-})
-
-export const useToast = () => {
-    return {
-        success: (message: string, permanent: boolean = false) => toastState.add(message, 'success', permanent),
-        error: (message: string, permanent: boolean = false) => toastState.add(message, 'error', permanent),
-        info: (message: string, permanent: boolean = false) => toastState.add(message, 'info', permanent),
-    }
-}
-</script>
-
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useToastStore } from '~/stores/toast'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-vue-next'
 
-interface Toast {
-  id: number
-  message: string
-  type: ToastType
-  permanent: boolean
-}
-
-
-const toasts = ref<Toast[]>([])
-let nextId = 1
-
-const add = (message: string, type: ToastType = 'info', permanent: boolean = false) => {
-  const id = nextId++
-  toasts.value.push({ id, message, type, permanent })
-  if (!permanent) {
-    setTimeout(() => remove(id), 3000)
-  }
-}
-
-const remove = (id: number) => {
-  const index = toasts.value.findIndex(t => t.id === id)
-  if (index !== -1) {
-    toasts.value.splice(index, 1)
-  }
-}
-
-onMounted(() => {
-  toastState.add = add
-})
-
-// Expose methods to be used via template ref or provide/inject if preferred globally
-// For simplicity in this Nuxt app setup without a dedicated store yet, 
-// we can use useState to make it globally accessible if we wrap it in a plugin,
-// but here we are creating the component.
-// We will export a composable next to make this easy to use.
-
-defineExpose({ add, remove })
+const toastStore = useToastStore()
 </script>
-
-
 
 <template>
   <div class="fixed bottom-4 right-4 z-[9999] flex flex-col space-y-2 pointer-events-none">
@@ -72,7 +16,7 @@ defineExpose({ add, remove })
       leave-to-class="transform translate-y-2 opacity-0"
     >
       <div 
-        v-for="toast in toasts" 
+        v-for="toast in toastStore.toasts" 
         :key="toast.id" 
         class="pointer-events-auto flex items-center w-full max-w-xs p-4 rounded-lg shadow-lg border text-sm font-medium"
         :class="{
@@ -88,8 +32,7 @@ defineExpose({ add, remove })
         </div>
         <div class="flex-1 mr-2">{{ toast.message }}</div>
         <button 
-          v-if="toast.permanent"
-          @click="remove(toast.id)" 
+          @click="toastStore.remove(toast.id)" 
           class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
           title="Fechar"
         >
@@ -99,3 +42,4 @@ defineExpose({ add, remove })
     </TransitionGroup>
   </div>
 </template>
+

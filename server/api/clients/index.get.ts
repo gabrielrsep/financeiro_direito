@@ -9,16 +9,27 @@ export default defineEventHandler(async (event) => {
     const offset = (page - 1) * limit;
 
     try {
+        const recurrent = query.recurrent === 'true';
+
         let sql = "SELECT * FROM clients";
         let countSql = "SELECT COUNT(*) as total FROM clients";
         const params: any[] = [];
+        const whereConditions: string[] = [];
 
         if (search) {
-            const searchCondition = " WHERE lower(name) LIKE ? OR replace(document, '.', '') LIKE ?";
-            sql += searchCondition;
-            countSql += searchCondition;
+            whereConditions.push("(name LIKE ? OR replace(document, '.', '') LIKE ?)");
             const searchParam = `%${search}%`;
             params.push(searchParam, searchParam);
+        }
+
+        if (recurrent) {
+            whereConditions.push("is_recurrent = 1");
+        }
+
+        if (whereConditions.length > 0) {
+            const whereClause = " WHERE " + whereConditions.join(" AND ");
+            sql += whereClause;
+            countSql += whereClause;
         }
 
         // Sorting mapping

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
-import { useToast } from '../../components/AppToast.vue'
+import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye, DollarSign } from 'lucide-vue-next'
 import ConfirmModal from '../../components/ConfirmModal.vue'
+import PaymentModal from '../../components/PaymentModal.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface Client {
   id?: number
@@ -10,14 +11,20 @@ interface Client {
   document: string
   contact: string
   address: string
+  is_recurrent?: boolean | number
+  recurrence_value?: number
+  recurrence_day?: number
 }
 
 useHead({
-    title: 'Lei & $ - Clientes'
+  title: 'Lei & $ - Clientes'
 })
+
+const toastStore = useToastStore()
 
 const searchQuery = ref('')
 const sortBy = ref('created_at-desc')
+const showRecurrentOnly = ref(false)
 const page = ref(1)
 const limit = ref(10)
 
@@ -25,7 +32,8 @@ const queryParams = computed(() => ({
   page: page.value,
   limit: limit.value,
   search: searchQuery.value,
-  sortBy: sortBy.value
+  sortBy: sortBy.value,
+  recurrent: showRecurrentOnly.value
 }))
 
 interface ApiResponse {
@@ -55,9 +63,17 @@ watch(searchQuery, () => {
   }, 300)
 })
 
-watch(sortBy, () => {
+watch([sortBy, showRecurrentOnly], () => {
   page.value = 1
 })
+
+const isPaymentModalOpen = ref(false)
+const selectedClientForPayment = ref<Client | null>(null)
+
+const openPaymentModal = (client: Client) => {
+  selectedClientForPayment.value = client
+  isPaymentModalOpen.value = true
+}
 
 const isDialogOpen = ref(false)
 const isEditing = ref(false)
@@ -66,18 +82,22 @@ const currentClient = ref<Client>({
   name: '',
   document: '',
   contact: '',
-  address: ''
+  address: '',
+  is_recurrent: false,
+  recurrence_value: undefined,
+  recurrence_day: undefined
 })
 
 const openCreateModal = () => {
   isEditing.value = false
-  currentClient.value = { id: undefined, name: '', document: '', contact: '', address: '' }
+  isEditing.value = false
+  currentClient.value = { id: undefined, name: '', document: '', contact: '', address: '', is_recurrent: false, recurrence_value: undefined, recurrence_day: undefined }
   isDialogOpen.value = true
 }
 
 const openEditModal = (client: Client) => {
   isEditing.value = true
-  currentClient.value = { ...client }
+  currentClient.value = { ...client, is_recurrent: !!client.is_recurrent }
   isDialogOpen.value = true
 }
 
@@ -100,9 +120,9 @@ const saveClient = async () => {
     }
     await refresh()
     closeModal()
-    useToast().success('Cliente salvo com sucesso')
+    toastStore.success('Cliente salvo com sucesso')
   } catch (error: any) {
-    useToast().error(error.message || 'Erro ao salvar cliente', true)
+    toastStore.error(error.message || 'Erro ao salvar cliente', true)
   }
 }
 
@@ -120,9 +140,9 @@ const confirmDeleteClient = async () => {
   try {
     await $fetch(`/api/clients/${clientToDeleteId.value}`, { method: 'DELETE' })
     await refresh()
-    useToast().success('Cliente excluído com sucesso')
+    toastStore.success('Cliente excluído com sucesso')
   } catch (error) {
-    useToast().error('Erro ao excluir cliente', true)
+    toastStore.error('Erro ao excluir cliente', true)
   } finally {
     isDeleteModalOpen.value = false
     clientToDeleteId.value = null
@@ -158,6 +178,10 @@ const confirmDeleteClient = async () => {
         <option value="name-asc">Nome (A-Z)</option>
         <option value="name-desc">Nome (Z-A)</option>
       </select>
+            <div class="flex items-center space-x-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+        <input type="checkbox" id="showRecurrentOnly" v-model="showRecurrentOnly" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:ring-offset-slate-900" />
+        <label for="showRecurrentOnly" class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap cursor-pointer select-none">Apenas Recorrentes</label>
+      </div>
     </div>
 
     <!-- Table -->
@@ -175,9 +199,12 @@ const confirmDeleteClient = async () => {
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
             <tr v-for="client in clients" :key="client.id" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors text-slate-600 dark:text-slate-400">
               <td class="p-4 align-middle font-medium">
-                <NuxtLink :to="`/clients/${client.id}`" class="text-slate-900 dark:text-white hover:underline">
-                  {{ client.name }}
-                </NuxtLink>
+                <div class="flex items-center">
+                    <NuxtLink :to="`/clients/${client.id}`" class="text-slate-900 dark:text-white hover:underline">
+                    {{ client.name }}
+                    </NuxtLink>
+                    <span v-if="client.is_recurrent" class="ml-2 inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/30 dark:text-green-400">Recorrente</span>
+                </div>
               </td>
               <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ client.document }}</td>
               <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ client.contact }}</td>
@@ -186,6 +213,10 @@ const confirmDeleteClient = async () => {
                   class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white h-8 w-8 text-slate-500 dark:text-slate-400">
                   <Eye class="h-4 w-4" />
                 </NuxtLink>
+                <button v-if="client.is_recurrent" @click="openPaymentModal(client)" title="Registrar Pagamento Mensal"
+                  class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-900 dark:hover:text-green-400 h-8 w-8 text-green-600 dark:text-green-500">
+                  <DollarSign class="h-4 w-4" />
+                </button>
                 <button @click="openEditModal(client)"
                   class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white h-8 w-8 text-slate-500 dark:text-slate-400">
                   <Pencil class="h-4 w-4" />
@@ -279,6 +310,28 @@ const confirmDeleteClient = async () => {
             <input id="address" v-model="currentClient.address"
               class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-50 text-slate-900 dark:text-white" />
           </div>
+
+          <!-- Recurrence Fields -->
+          <div class="flex items-center space-x-2 pt-2">
+            <input type="checkbox" id="is_recurrent" v-model="currentClient.is_recurrent" class="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:ring-offset-slate-900" />
+            <label for="is_recurrent" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">Cliente Recorrente</label>
+          </div>
+
+          <div v-if="currentClient.is_recurrent" class="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+             <div class="grid gap-2">
+                <label for="recurrence_value" class="text-sm font-medium leading-none text-slate-900 dark:text-white">Valor Mensal</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-2.5 text-slate-500 dark:text-slate-400">R$</span>
+                    <input id="recurrence_value" type="number" step="0.01" v-model="currentClient.recurrence_value"
+                    class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent pl-9 pr-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
+                </div>
+             </div>
+             <div class="grid gap-2">
+                <label for="recurrence_day" class="text-sm font-medium leading-none text-slate-900 dark:text-white">Dia de Vencimento</label>
+                <input id="recurrence_day" type="number" min="1" max="31" v-model="currentClient.recurrence_day"
+                class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
+             </div>
+          </div>
         </div>
 
         <div class="flex items-center p-6 pt-0 justify-end space-x-2 text-slate-900 dark:text-white">
@@ -301,6 +354,16 @@ const confirmDeleteClient = async () => {
       variant="danger"
       @close="isDeleteModalOpen = false"
       @confirm="confirmDeleteClient"
+    />
+    <PaymentModal
+      :isOpen="isPaymentModalOpen"
+      :processId="null"
+      :clientId="selectedClientForPayment?.id"
+      :processNumber="''"
+      :clientName="selectedClientForPayment?.name || ''"
+      :remainingValue="selectedClientForPayment?.recurrence_value || 0"
+      @close="isPaymentModalOpen = false"
+      @saved="() => { isPaymentModalOpen = false; toastStore.success('Pagamento registrado com sucesso'); refresh(); }"
     />
   </div>
 </template>

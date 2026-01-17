@@ -47,3 +47,5 @@ Instruções Técnicas:
     Estruture o SQLite de forma relacional: clientes 1 -> N processos 1 -> N pagamentos.
 
     Crie Server API Routes no Nuxt (diretório /server) para lidar com as operações de banco de dados.
+
+    quando fizer alguma alteração no banco de dados, crie uma migration (arquivo .sql) para que eu possa aplicar as alterações no banco de dados em produção, além disso, sempre crie índices para as colunas a medida que forem criadas, se achar necessário.

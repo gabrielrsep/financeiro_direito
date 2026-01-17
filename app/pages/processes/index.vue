@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next'
-import ClientSelectionModal from '../../components/ClientSelectionModal.vue'
-import ConfirmModal from '../../components/ConfirmModal.vue'
-import { useToast } from '../../components/AppToast.vue'
+import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
+import ConfirmModal from '~/components/ConfirmModal.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface Client {
     id: number
@@ -76,7 +76,7 @@ watch(showArchived, () => {
   page.value = 1
 })
 
-const toast = useToast()
+const toastStore = useToastStore()
 
 const isDialogOpen = ref(false)
 const isEditing = ref(false)
@@ -146,7 +146,7 @@ const onClientSelected = (client: Client) => {
 const saveProcess = async () => {
     try {
         if (!currentProcess.value.client_id) {
-            toast.error('Selecione um cliente')
+            toastStore.error('Selecione um cliente')
             return
         }
         if (isEditing.value && currentProcess.value.id) {
@@ -154,18 +154,18 @@ const saveProcess = async () => {
                 method: 'PUT',
                 body: currentProcess.value
             })
-            toast.success('Processo atualizado com sucesso')
+            toastStore.success('Processo atualizado com sucesso')
         } else {
             await $fetch('/api/processes', {
                 method: 'POST',
                 body: currentProcess.value
             })
-            toast.success('Processo criado com sucesso')
+            toastStore.success('Processo criado com sucesso')
         }
         await refreshProcesses()
         closeModal()
     } catch (error: any) {
-        toast.error(error.data?.message || error.message || 'Erro ao salvar processo')
+        toastStore.error(error.data?.message || error.message || 'Erro ao salvar processo')
     }
 }
 
@@ -183,9 +183,9 @@ const confirmDeleteProcess = async () => {
     try {
         await $fetch(`/api/processes/${processToDeleteId.value}`, { method: 'DELETE' as any })
         await refreshProcesses()
-        useToast().success('Processo excluído com sucesso')
+        toastStore.success('Processo excluído com sucesso')
     } catch (error) {
-        useToast().error('Erro ao excluir processo')
+        toastStore.error('Erro ao excluir processo')
     } finally {
         isDeleteModalOpen.value = false
         processToDeleteId.value = null

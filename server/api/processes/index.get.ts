@@ -21,11 +21,11 @@ export default defineEventHandler(async (event) => {
             JOIN clients c ON p.client_id = c.id
         `;
         
-        const params: any[] = [];
+        const params: string[] = [];
         const conditions: string[] = [];
 
         if (search) {
-            conditions.push("(lower(p.process_number) LIKE ? OR lower(c.name) LIKE ?)");
+            conditions.push("(p.process_number LIKE ? OR c.name LIKE ?)");
             const searchParam = `%${search}%`;
             params.push(searchParam, searchParam);
         }
@@ -33,6 +33,8 @@ export default defineEventHandler(async (event) => {
         if (query.showArchived !== 'true') {
             conditions.push("p.status != 'Arquivado'");
         }
+
+        conditions.push("p.deleted_at IS NULL");
 
         if (conditions.length > 0) {
             const whereClause = " WHERE " + conditions.join(" AND ");

@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Search, ChevronLeft, ChevronRight, Building2, Plus, Trash2, CheckCircle2, Repeat } from 'lucide-vue-next'
 import OfficeExpenseModal from '~/components/OfficeExpenseModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
-import { useToast } from '~/components/AppToast.vue'
+import { useToastStore } from '~/stores/toast'
 
 interface OfficeExpense {
     id: number
@@ -55,7 +55,7 @@ watch(searchQuery, () => {
     }, 300)
 })
 
-const toast = useToast()
+const toast = useToastStore()
 const isModalOpen = ref(false)
 const selectedExpense = ref<OfficeExpense | null>(null)
 

@@ -1,8 +1,9 @@
+
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
-    const { name, document, contact, address } = body;
+    const { name, document, contact, address, is_recurrent, recurrence_value, recurrence_day } = body;
 
     if (!name || !document) {
         throw createError({
@@ -14,18 +15,24 @@ export default defineEventHandler(async (event) => {
 
     try {
         const result = await db.execute({
-            sql: "INSERT INTO clients (name, document, contact, address) VALUES (?, ?, ?, ?)",
-            args: [name, document, contact, address]
+            sql: `INSERT INTO clients (name, document, contact, address, is_recurrent, recurrence_value, recurrence_day) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+            args: [name, document, contact, address, is_recurrent ? 1 : 0, recurrence_value, recurrence_day]
         });
+        
+        const row = result.rows[0];
 
         return {
             success: true,
             data: {
-                id: Number(result.lastInsertRowid),
+                id: Number(row.id),
                 name,
                 document,
                 contact,
                 address,
+                is_recurrent,
+                recurrence_value,
+                recurrence_day,
             },
         };
     } catch (error: any) {
