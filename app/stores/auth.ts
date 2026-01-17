@@ -7,7 +7,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUser() {
     try {
-      const data = await $fetch<{ user: any }>('/api/auth/user')
+      const headers = useRequestHeaders(['cookie']) as Record<string, string>
+      const data = await $fetch<{ user: any }>('/api/auth/user', { headers })
       user.value = data.user
     } catch (error) {
       user.value = null

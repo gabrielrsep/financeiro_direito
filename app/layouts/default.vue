@@ -6,7 +6,7 @@ const authStore = useAuthStore()
 </script>
 
 <template>
-  <div>
+  <div class="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans antialiased transition-colors duration-300">
     <nav v-if="authStore.isAuthenticated" class="border-b bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-colors">
       <div class="flex h-16 items-center px-4 container mx-auto justify-between">
         <div class="flex items-center">
@@ -29,8 +29,11 @@ const authStore = useAuthStore()
         </div>
       </div>
     </nav>
+    
     <main class="container mx-auto py-6">
       <slot />
     </main>
+
+    <AppToast />
   </div>
 </template>

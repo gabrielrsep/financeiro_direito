@@ -13,9 +13,9 @@ const toggleColorMode = () => {
     class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
     aria-label="Toggle Dark Mode"
   >
-    <client-only>
+    <ClientOnly>
       <Sun v-if="colorMode.value === 'dark'" class="w-5 h-5 text-yellow-400" />
       <Moon v-else class="w-5 h-5 text-slate-700" />
-    </client-only>
+    </ClientOnly>
   </button>
 </template>
