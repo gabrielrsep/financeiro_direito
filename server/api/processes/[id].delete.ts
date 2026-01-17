@@ -29,31 +29,9 @@ export default defineEventHandler(async (event) => {
                 });
             }
 
-            // If it was 'em_conta', adjust client debt
-            if (process.payment_method === 'em_conta') {
-                const totalPaidResult = await tx.execute({
-                    sql: "SELECT SUM(value_paid) as total FROM payments WHERE process_id = ?",
-                    args: [id]
-                });
-                const paidAmount = Number((totalPaidResult.rows[0] as any)?.total || 0);
-
-                // The debt remaining for this process is (value_charged - paidAmount)
-                // We must subtract this from the client's balance
-                const debtToRemove = Number(process.value_charged) - paidAmount;
-
-                await tx.execute({
-                    sql: `
-                        UPDATE clients 
-                        SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP 
-                        WHERE id = ?
-                    `,
-                    args: [debtToRemove, process.client_id]
-                });
-            }
-
             // Delete the process (cascades to payments)
             await tx.execute({
-                sql: "DELETE FROM processes WHERE id = ?",
+                sql: "UPDATE processes SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?",
                 args: [id]
             });
 
