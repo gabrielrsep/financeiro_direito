@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
         const result = await db.execute({
             sql: `INSERT INTO clients (name, document, contact, address, is_recurrent, recurrence_value, recurrence_day) 
                   VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-            args: [name, document, contact, address, is_recurrent ? 1 : 0, recurrence_value, recurrence_day]
+            args: [name, document, contact, address, is_recurrent ? 1 : 0, recurrence_value ?? null, recurrence_day ?? null]
         });
         
         const row = result.rows[0];

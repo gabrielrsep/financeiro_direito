@@ -29,7 +29,16 @@ export default defineEventHandler(async (event) => {
                     INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, target)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `,
-                args: [client_id, process_number, tribunal, description, status || 'Ativo', value_charged || 0, payment_method, target]
+                args: [
+                    client_id, 
+                    process_number, 
+                    tribunal ?? null, 
+                    description ?? null, 
+                    status || 'Ativo', 
+                    value_charged || 0, 
+                    payment_method ?? null, 
+                    target ?? null
+                ]
             });
             
             const processId = Number(result.lastInsertRowid);

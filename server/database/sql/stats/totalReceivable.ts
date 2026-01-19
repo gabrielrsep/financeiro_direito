@@ -19,4 +19,4 @@ export default `SELECT
 	WHERE
 		pr.payment_method = 'em_conta'
 		AND pa.status = 'Pendente') 
-AS total`
+AS total;`

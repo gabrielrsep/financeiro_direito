@@ -4,6 +4,7 @@ import { Search, ChevronLeft, ChevronRight, DollarSign, Wallet, CalendarDays, Tr
 import PaymentModal from '../../components/PaymentModal.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
 import { useToastStore } from '~/stores/toast'
+import { formatCurrency } from '~/utils/formatters'
 
 interface Process {
     id: number
@@ -152,9 +153,7 @@ const isExpired = (date: string) => {
     return dueDate < today
 }
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+
 
 const getRemainingValue = (process: Process) => {
     return Math.max(0, process.value_charged - process.total_paid)

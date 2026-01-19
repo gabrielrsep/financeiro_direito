@@ -102,4 +102,4 @@ CREATE INDEX IF NOT EXISTS idx_users_office_id ON users(office_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier);
-CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_address ON login_attempts(ip_address)`
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_address ON login_attempts(ip_address);`

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye, DollarSign } from 'lucide-vue-next'
-import ConfirmModal from '../../components/ConfirmModal.vue'
-import PaymentModal from '../../components/PaymentModal.vue'
+import ConfirmModal from '~/components/ConfirmModal.vue'
+import PaymentModal from '~/components/PaymentModal.vue'
 import { useToastStore } from '~/stores/toast'
 
 interface Client {
@@ -13,6 +13,7 @@ interface Client {
   address: string
   is_recurrent?: boolean | number
   recurrence_value?: number
+  recurrence_paid?: number
   recurrence_day?: number
 }
 
@@ -361,7 +362,7 @@ const confirmDeleteClient = async () => {
       :clientId="selectedClientForPayment?.id"
       :processNumber="''"
       :clientName="selectedClientForPayment?.name || ''"
-      :remainingValue="selectedClientForPayment?.recurrence_value || 0"
+      :remainingValue="selectedClientForPayment?.recurrence_paid || 0"
       @close="isPaymentModalOpen = false"
       @saved="() => { isPaymentModalOpen = false; toastStore.success('Pagamento registrado com sucesso'); refresh(); }"
     />

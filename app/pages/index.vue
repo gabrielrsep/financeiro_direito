@@ -7,9 +7,11 @@ import {
   TrendingUp,
   Clock,
   CalendarDays,
-  Building2
+  Building2,
+  RefreshCw
 } from 'lucide-vue-next'
 import { useAuthStore } from '~/stores/auth'
+import { formatCurrency } from '~/utils/formatters'
 
 
 const authStore = useAuthStore()
@@ -19,6 +21,7 @@ interface Stats {
     totalReceivable: number
     activeProcesses: number
     monthlyRevenue: number
+    recurrentRevenue: number
     pendingExpenses: number
   }
   recentProcesses: any[]
@@ -40,12 +43,7 @@ const { data: scheduledData } = useFetch<any>('/api/gastos/scheduled', {
 
 const scheduledPayments = computed(() => scheduledData.value?.data || [])
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
-}
+
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('pt-BR')
@@ -72,6 +70,13 @@ const kpis = computed(() => [
     description: 'Recebido este mês',
     icon: TrendingUp,
     color: 'text-emerald-600'
+  },
+  {
+    title: 'Receita Recorrente',
+    value: formatCurrency(stats.value?.kpis.recurrentRevenue || 0),
+    description: 'De clientes recorrentes este mês',
+    icon: RefreshCw,
+    color: 'text-indigo-600'
   },
   {
     title: 'Gastos Pendentes',

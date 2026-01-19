@@ -85,4 +85,4 @@ INSERT INTO office_expenses (description, amount, due_date, status) VALUES
 ('Marketing Digital', 1200.00, '2024-06-18', 'Pendente'),
 ('Condomínio', 650.00, '2024-06-05', 'Pago'),
 ('Estacionamento', 300.00, '2024-06-30', 'Pendente'),
-('Pro labore Daniel', 12000.00, '2024-06-01', 'Pago')`
+('Pro labore Daniel', 12000.00, '2024-06-01', 'Pago');`

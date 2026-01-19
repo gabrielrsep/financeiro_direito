@@ -11,7 +11,15 @@ export default defineEventHandler(async (event) => {
     try {
         const recurrent = query.recurrent === 'true';
 
-        let sql = "SELECT * FROM clients";
+        let sql = `
+            SELECT
+                c.*,
+                c.recurrence_value - SUM(p.value_paid) recurrence_paid
+            FROM
+                clients c
+            LEFT JOIN payments p ON
+                c.id = p.client_id AND p.status = 'Pago'
+        `;
         let countSql = "SELECT COUNT(*) as total FROM clients";
         const params: any[] = [];
         const whereConditions: string[] = [];
@@ -39,7 +47,7 @@ export default defineEventHandler(async (event) => {
         else if (sortBy === 'created_at-asc') orderBy = "created_at ASC";
         else if (sortBy === 'created_at-desc') orderBy = "created_at DESC";
 
-        sql += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+        sql += ` GROUP BY c.id ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
         
         // Count total
         const totalResult = await db.execute({

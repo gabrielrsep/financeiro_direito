@@ -1,5 +1,4 @@
 import { existsSync } from "node:fs";
-import sqlTranspile from '../database/sql-transpile'
 
 export default defineNitroPlugin(async () => {
     const { DATABASE_URL } = process.env;
@@ -18,11 +17,11 @@ export default defineNitroPlugin(async () => {
         try {
             const schema = await import("../database/sql/schema");
             db.executeMultiple(schema.default);
+            console.log("Database schema applied.");
         } catch (error) {
             console.error('Failed to apply schema', JSON.stringify(error))
         }
 
-        console.log("Database schema applied.");
 
         const seed = await import("../database/sql/seed");
         db.executeMultiple(seed.default);

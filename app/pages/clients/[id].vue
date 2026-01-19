@@ -14,6 +14,7 @@ import {
     Calendar,
     ExternalLink
 } from 'lucide-vue-next'
+import { formatCurrency } from '~/utils/formatters'
 
 const route = useRoute()
 const clientId = route.params.id
@@ -58,9 +59,7 @@ useHead({
     title: computed(() => `${client.value?.name || 'Cliente'} - Detalhes - Lei & $`)
 })
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+
 
 const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { X, DollarSign, Calendar } from 'lucide-vue-next'
 import { useToastStore } from '~/stores/toast'
+import { formatCurrency } from '~/utils/formatters'
 
 interface Props {
   isOpen: boolean
@@ -65,9 +66,7 @@ const savePayment = async () => {
     }
 }
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+
 </script>
 
 <template>

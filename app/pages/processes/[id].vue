@@ -15,6 +15,7 @@ import {
     DollarSign,
     Target
 } from 'lucide-vue-next'
+import { formatCurrency } from '~/utils/formatters'
 
 const route = useRoute()
 const processId = route.params.id
@@ -84,9 +85,7 @@ const paymentProgress = computed(() => {
     return Math.min(Math.round((totalPaid.value / process.value.value_charged) * 100), 100)
 })
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+
 
 const formatDate = (dateString: string | null) => {
     if (!dateString) return '-'

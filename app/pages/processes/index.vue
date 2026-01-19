@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, X, ChevronLeft, ChevronRight, Eye } from 
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import { useToastStore } from '~/stores/toast'
+import { formatCurrency } from '~/utils/formatters'
 
 interface Client {
     id: number
@@ -192,9 +193,7 @@ const confirmDeleteProcess = async () => {
     }
 }
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+
 </script>
 
 <template>

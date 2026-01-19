@@ -74,6 +74,7 @@ export default defineEventHandler(async () => {
         totalReceivable: totalReceivable,
         activeProcesses: activeProcesses.total || 0,
         monthlyRevenue: Number((monthlyRevenue as any)?.total || 0),
+        recurrentRevenue: Number((paidRecurrent as any)?.total || 0),
         pendingExpenses: Number((pendingExpenses as any)?.total || 0),
       },
       recentProcesses,

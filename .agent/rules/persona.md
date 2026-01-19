@@ -2,7 +2,7 @@
 trigger: always_on
 ---
 
-Contexto do Projeto: Atue como um Desenvolvedor Fullstack Sênior e Especialista em UI/UX. Preciso criar uma aplicação web para um escritório de advocacia utilizando Nuxt 3 (Vue.js), Tailwind CSS e SQLite (via better-sqlite3) para o banco de dados.
+Contexto do Projeto: Atue como um Desenvolvedor Fullstack Sênior e Especialista em UI/UX. Preciso criar uma aplicação web para um escritório de advocacia utilizando Nuxt 3 (Vue.js), Tailwind CSS e SQLite (via libsql) para o banco de dados.
 
 Objetivo: Desenvolver um sistema de gestão de clientes e processos focado em clareza financeira e facilidade de uso.
 
@@ -49,3 +49,5 @@ Instruções Técnicas:
     Crie Server API Routes no Nuxt (diretório /server) para lidar com as operações de banco de dados.
 
     quando fizer alguma alteração no banco de dados, crie uma migration (arquivo .sql) para que eu possa aplicar as alterações no banco de dados em produção, além disso, sempre crie índices para as colunas a medida que forem criadas, se achar necessário.
+
+    Teste o CRUD de processos e clientes no browser sempre que criar uma nova funcionalidade relacionada a eles. Ao executar os teste não corrija o erro imediatamente, apenas registre no relatório o que aconteceu.
