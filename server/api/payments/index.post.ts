@@ -1,4 +1,4 @@
-import { db } from "../../database/connection";
+import { databaseArgs, db } from "~~/server/database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     if ((!process_id && !client_id) || value_paid === undefined) {
         throw createError({
             statusCode: 400,
-            statusMessage: "Bad Request",
+            message: "Bad Request",
             message: "Process ID or Client ID, and Value Paid are required",
         });
     }
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
         } else {
              const result = await db.execute({
                 sql: `INSERT INTO payments (process_id, client_id, value_paid, payment_date, status) VALUES (?, ?, ?, ?, ?) RETURNING id`,
-                args: [process_id || null, client_id || null, value_paid, payment_date, status || 'Pago']
+                args: databaseArgs(process_id, client_id, value_paid, payment_date, status || 'Pago')
             })
             const row = result.rows[0];
             lastId = Number(row.id);
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
         console.error(error);
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
     }

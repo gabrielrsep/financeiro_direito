@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   if (!session) {
     throw createError({
       statusCode: 401,
-      statusMessage: "Não autorizado.",
+      message: "Não autorizado.",
     });
   }
 
@@ -15,14 +15,14 @@ export default defineEventHandler(async (event) => {
   if (!id) {
     throw createError({
       statusCode: 400,
-      statusMessage: "ID do usuário é obrigatório.",
+      message: "ID do usuário é obrigatório.",
     });
   }
 
   if (Number(id) === Number(currentUserId)) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Você não pode excluir seu próprio usuário.",
+      message: "Você não pode excluir seu próprio usuário.",
     });
   }
 
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
   if (user.rows.length === 0) {
     throw createError({
       statusCode: 404,
-      statusMessage: "Usuário não encontrado.",
+      message: "Usuário não encontrado.",
     });
   }
 
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
   if ((usersCount.rows[0].count as number) <= 1) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Não é possível excluir o único usuário do escritório.",
+      message: "Não é possível excluir o único usuário do escritório.",
     });
   }
 
@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     throw createError({
       statusCode: 500,
-      statusMessage: "Erro ao excluir usuário.",
+      message: "Erro ao excluir usuário.",
     });
   }
 });

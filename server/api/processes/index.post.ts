@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     if (!client_id || !process_number) {
         throw createError({
             statusCode: 400,
-            statusMessage: "Bad Request",
+            message: "Bad Request",
             message: "Client ID and Process Number are required",
         });
     }
@@ -99,13 +99,13 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                statusMessage: "Conflict",
+                message: "Conflict",
                 message: "Process with this number already exists",
             });
         }
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
     }

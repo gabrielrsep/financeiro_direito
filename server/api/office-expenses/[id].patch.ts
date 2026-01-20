@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
     if (!id) {
         throw createError({
             statusCode: 400,
-            statusMessage: "ID é obrigatório.",
+            message: "ID é obrigatório.",
         });
     }
 
@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
             if (fields.length === 0) {
                 throw createError({
                     statusCode: 400,
-                    statusMessage: "Nenhum campo para atualizar.",
+                    message: "Nenhum campo para atualizar.",
                 });
             }
 
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
             if (!currentExpense) {
                 throw createError({
                     statusCode: 404,
-                    statusMessage: "Gasto não encontrado.",
+                    message: "Gasto não encontrado.",
                 });
             }
 
@@ -99,7 +99,7 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: error.statusCode || 500,
-            statusMessage: error.statusMessage || "Internal Server Error",
+            message: error.message || "Internal Server Error",
             message: error.message,
         });
     }

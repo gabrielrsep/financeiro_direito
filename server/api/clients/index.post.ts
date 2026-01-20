@@ -1,5 +1,18 @@
 
-import { db } from "../../database/connection";
+import { db, databaseArgs } from "~~/server/database/connection";
+import pino from "pino";
+
+const logger = pino({
+    transport: {
+        target: 'pino-roll',
+        options: {
+            file: 'logs/error.log',
+            frequency: 'daily',
+            maxSize: '10MB',
+            maxFiles: 7,
+        },
+    },
+});
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
@@ -8,7 +21,7 @@ export default defineEventHandler(async (event) => {
     if (!name || !document) {
         throw createError({
             statusCode: 400,
-            statusMessage: "Bad Request",
+            message: "Bad Request",
             message: "Name and Document are required",
         });
     }
@@ -17,7 +30,7 @@ export default defineEventHandler(async (event) => {
         const result = await db.execute({
             sql: `INSERT INTO clients (name, document, contact, address, is_recurrent, recurrence_value, recurrence_day) 
                   VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-            args: [name, document, contact, address, is_recurrent ? 1 : 0, recurrence_value ?? null, recurrence_day ?? null]
+            args: databaseArgs(name, document, contact, address, is_recurrent ? 1 : 0, recurrence_value, recurrence_day)
         });
         
         const row = result.rows[0];
@@ -39,14 +52,16 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                statusMessage: "Conflict",
+                message: "Conflict",
                 message: "Client with this document already exists",
             });
         }
+        logger.error(error.message);
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
+
     }
 });

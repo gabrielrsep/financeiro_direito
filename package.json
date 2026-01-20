@@ -8,7 +8,8 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "transpile-sql": "node server/database/sql-transpile.ts run"
+    "transpile-sql": "node server/database/sql-transpile.ts run",
+    "test": "export NODE_ENV=test && vitest run test/nuxt"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
@@ -19,16 +20,24 @@
     "lucide-vue-next": "^0.562.0",
     "nuxt": "^4.2.2",
     "pinia": "^3.0.4",
+    "pino": "^10.2.1",
+    "pino-roll": "^4.0.0",
     "tailwind-merge": "^3.4.0",
     "vue": "^3.5.26",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@nuxt/test-utils": "^3.23.0",
     "@nuxtjs/color-mode": "^4.0.0",
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@types/bcrypt": "^6.0.0",
     "@types/node": "^25.0.8",
+    "@vue/test-utils": "^2.4.6",
     "dbgate-query-splitter": "^4.11.9",
-    "glob": "^13.0.0"
+    "dotenv": "^17.2.3",
+    "glob": "^13.0.0",
+    "happy-dom": "^20.3.3",
+    "playwright-core": "^1.57.0",
+    "vitest": "^3.2.4"
   }
 }

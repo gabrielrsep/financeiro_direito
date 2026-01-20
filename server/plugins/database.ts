@@ -5,6 +5,7 @@ export default defineNitroPlugin(async () => {
     const databaseFile = DATABASE_URL!.replace("file:", "")
     const firstInit = !existsSync(databaseFile)
 
+
     if(process.env.NODE_ENV === 'production') {
         return
     }

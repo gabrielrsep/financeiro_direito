@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   if (!session) {
     throw createError({
       statusCode: 401,
-      statusMessage: "Não autorizado.",
+      message: "Não autorizado.",
     });
   }
 
@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   if (!name || !username || !email || !password) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Todos os campos (nome, usuário, email e senha) são obrigatórios.",
+      message: "Todos os campos (nome, usuário, email e senha) são obrigatórios.",
     });
   }
 
@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   if (existingUser.rows.length > 0) {
     throw createError({
       statusCode: 409,
-      statusMessage: "Usuário ou email já cadastrado.",
+      message: "Usuário ou email já cadastrado.",
     });
   }
 
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     throw createError({
       statusCode: 500,
-      statusMessage: "Erro ao criar usuário.",
+      message: "Erro ao criar usuário.",
     });
   }
 });

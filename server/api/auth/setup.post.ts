@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   if (!officeName || !adminName || !username || !email || !password) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Todos os campos são obrigatórios.",
+      message: "Todos os campos são obrigatórios.",
     });
   }
 
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   if (Number(existingUsers.rows[0]?.count || 0) > 0) {
     throw createError({
       statusCode: 403,
-      statusMessage: "O sistema já foi configurado.",
+      message: "O sistema já foi configurado.",
     });
   }
 
@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
     console.error("Setup error:", error);
     throw createError({
       statusCode: 500,
-      statusMessage: "Erro interno ao configurar o sistema: " + error.message,
+      message: "Erro interno ao configurar o sistema: " + error.message,
     });
   }
 });

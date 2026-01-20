@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   if (!id) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'ID do processo é obrigatório'
+      message: 'ID do processo é obrigatório'
     })
   }
 
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     if (!process) {
       throw createError({
         statusCode: 404,
-        statusMessage: 'Processo não encontrado'
+        message: 'Processo não encontrado'
       })
     }
 
@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     throw createError({
       statusCode: error.statusCode || 500,
-      statusMessage: error.statusMessage || 'Erro ao buscar detalhes do processo'
+      message: error.message || 'Erro ao buscar detalhes do processo'
     })
   }
 })

@@ -50,4 +50,6 @@ Instruções Técnicas:
 
     quando fizer alguma alteração no banco de dados, crie uma migration (arquivo .sql) para que eu possa aplicar as alterações no banco de dados em produção, além disso, sempre crie índices para as colunas a medida que forem criadas, se achar necessário.
 
-    Teste o CRUD de processos e clientes no browser sempre que criar uma nova funcionalidade relacionada a eles. Ao executar os teste não corrija o erro imediatamente, apenas registre no relatório o que aconteceu.
+    Testes:
+    crie testes a medida que for adicionando funcionalidades, utilize o vitest para isso.
+    execute os testes, (npm test) sempre que achar necessário. ao final da execução dos testes execute os testes das principais funcionalidades via browser (http://localhost:3000/) para garantir que tudo está funcionando corretamente. nessa etapa, se precisar, inicio o servidor com (npm run dev)

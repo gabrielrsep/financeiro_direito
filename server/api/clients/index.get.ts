@@ -1,3 +1,4 @@
+import { devLogger } from "~~/server/util/logger";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
@@ -8,17 +9,26 @@ export default defineEventHandler(async (event) => {
     const sortBy = (query.sortBy as string) || 'created_at-desc';
     const offset = (page - 1) * limit;
 
+    const currentDate = new Date();
+    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+    const currentMonthStartStr = currentMonthStart.toISOString();
+    const currentMonthEndStr = currentMonthEnd.toISOString();
+
     try {
         const recurrent = query.recurrent === 'true';
 
         let sql = `
-            SELECT
-                c.*,
-                c.recurrence_value - SUM(p.value_paid) recurrence_paid
-            FROM
-                clients c
-            LEFT JOIN payments p ON
-                c.id = p.client_id AND p.status = 'Pago'
+        SELECT
+            c.*,
+            c.recurrence_value - SUM(p.value_paid) recurrence_paid
+        FROM
+            clients c
+        LEFT JOIN payments p ON
+            c.id = p.client_id
+            AND p.status = 'Pago'
+            AND p.payment_date BETWEEN '${currentMonthStartStr}' AND '${currentMonthEndStr}'
         `;
         let countSql = "SELECT COUNT(*) as total FROM clients";
         const params: any[] = [];
@@ -78,7 +88,7 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
     }

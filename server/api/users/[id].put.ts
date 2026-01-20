@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   if (!session) {
     throw createError({
       statusCode: 401,
-      statusMessage: "Não autorizado.",
+      message: "Não autorizado.",
     });
   }
 
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!id) {
     throw createError({
       statusCode: 400,
-      statusMessage: "ID do usuário é obrigatório.",
+      message: "ID do usuário é obrigatório.",
     });
   }
 
@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   if (!name || !username || !email) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Nome, usuário e email são obrigatórios.",
+      message: "Nome, usuário e email são obrigatórios.",
     });
   }
 
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
   if (user.rows.length === 0) {
     throw createError({
       statusCode: 404,
-      statusMessage: "Usuário não encontrado.",
+      message: "Usuário não encontrado.",
     });
   }
 
@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
   if (existingUser.rows.length > 0) {
     throw createError({
       statusCode: 409,
-      statusMessage: "Usuário ou email já cadastrado por outra pessoa.",
+      message: "Usuário ou email já cadastrado por outra pessoa.",
     });
   }
 
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
   } catch (error: any) {
     throw createError({
       statusCode: 500,
-      statusMessage: "Erro ao atualizar usuário.",
+      message: "Erro ao atualizar usuário.",
     });
   }
 });

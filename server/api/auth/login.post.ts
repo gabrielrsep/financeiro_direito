@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   if (!identifier || !password) {
     throw createError({
       statusCode: 400,
-      statusMessage: "Identificador e senha são obrigatórios.",
+      message: "Identificador e senha são obrigatórios.",
     });
   }
 
@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
     if (attempt.attempts as number >= 5 && diffMinutes < 15) {
       throw createError({
         statusCode: 429,
-        statusMessage: "Muitas tentativas. Tente novamente em 15 minutos.",
+        message: "Muitas tentativas. Tente novamente em 15 minutos.",
       });
     }
 
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
     await recordLoginAttempt(identifier, ipAddress);
     throw createError({
       statusCode: 401,
-      statusMessage: "Credenciais inválidas.",
+      message: "Credenciais inválidas.",
     });
   }
 
@@ -64,7 +64,7 @@ export default defineEventHandler(async (event) => {
     await recordLoginAttempt(identifier, ipAddress);
     throw createError({
       statusCode: 401,
-      statusMessage: "Credenciais inválidas.",
+      message: "Credenciais inválidas.",
     });
   }
 

@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     if (!description || !amount || !due_date) {
         throw createError({
             statusCode: 400,
-            statusMessage: "Campos obrigatórios: descrição, valor e data de vencimento.",
+            message: "Campos obrigatórios: descrição, valor e data de vencimento.",
         });
     }
 
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
     }

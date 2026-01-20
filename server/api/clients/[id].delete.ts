@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
     if (!id) {
         throw createError({
             statusCode: 400,
-            statusMessage: "Bad Request",
+            message: "Bad Request",
             message: "Client ID is required",
         });
     }
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
         if (result.rowsAffected === 0) {
             throw createError({
                 statusCode: 404,
-                statusMessage: "Not Found",
+                message: "Not Found",
                 message: "Client not found",
             });
         }
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
         if (error.statusCode) throw error;
         throw createError({
             statusCode: 500,
-            statusMessage: "Internal Server Error",
+            message: "Internal Server Error",
             message: error.message,
         });
     }

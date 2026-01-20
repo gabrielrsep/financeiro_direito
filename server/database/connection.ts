@@ -1,19 +1,23 @@
-import { createClient } from "@libsql/client";
+import { createClient, type Client } from "@libsql/client";
 
-const { DATABASE_URL, DATABASE_AUTH_TOKEN, NODE_ENV } = process.env;
+const { DATABASE_URL, DATABASE_AUTH_TOKEN } = process.env;
 
-let authToken: string | undefined
+let db: Client
 
-if (NODE_ENV === "production") {
-    authToken = DATABASE_AUTH_TOKEN!;
-}
-
-
-const db = createClient({
+db = createClient({
     url: DATABASE_URL!,
-    authToken,
-});
+    authToken: DATABASE_AUTH_TOKEN,
+})
 
+export function databaseArgs(...args: any[]) {
+    const newArgs = args.flat()
+    for (let i = 0; i < newArgs.length; i++) {
+        if (newArgs[i] === undefined) {
+            newArgs[i] = null
+        }
+    }
+    return newArgs
+}
 
 export { db };
 
