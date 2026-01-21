@@ -124,6 +124,80 @@ describe('Users API', async () => {
      }
    })
 
+  it('should return 400 if username is too short', async () => {
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { ...testUser, username: 'ab' },
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 400')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(400)
+      expect(err.response?._data?.message).toContain('pelo menos 3 caracteres')
+    }
+  })
+
+  it('should return 400 if username has invalid characters', async () => {
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { ...testUser, username: 'invalid@user' },
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 400')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(400)
+      expect(err.response?._data?.message).toContain('apenas letras, números e sublinhados')
+    }
+  })
+
+  it('should return 400 if username has repeated characters', async () => {
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { ...testUser, username: 'aaaaa' },
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 400')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(400)
+      expect(err.response?._data?.message).toContain('3 caracteres diferentes')
+    }
+  })
+
+  it('should return 409 if username already exists', async () => {
+    if (!createdUserId) return // Skip if creation failed
+
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { ...testUser }, // Same user as created
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 409')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(409)
+      expect(err.response?._data?.message).toContain('Usuário ou email já cadastrado')
+    }
+  })
+
+  it('should return 409 if email already exists', async () => {
+    if (!createdUserId) return // Skip
+
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { ...testUser, username: 'newusername' }, // Different username, same email
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 409')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(409)
+      expect(err.response?._data?.message).toContain('Usuário ou email já cadastrado')
+    }
+  })
+
   it('should list users', async () => {
     try {
         const response = await $fetch<any>('/api/users', {

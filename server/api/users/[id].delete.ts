@@ -5,7 +5,6 @@ export default defineEventHandler(async (event) => {
   if (!session) {
     throw createError({
       statusCode: 401,
-      message: "Não autorizado.",
     });
   }
 

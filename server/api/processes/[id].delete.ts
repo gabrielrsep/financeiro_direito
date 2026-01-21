@@ -6,7 +6,6 @@ export default defineEventHandler(async (event) => {
     if (!id) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "ID is required",
         });
     }
@@ -24,7 +23,6 @@ export default defineEventHandler(async (event) => {
             if (!process) {
                 throw createError({
                     statusCode: 404,
-                    message: "Not Found",
                     message: "Process not found",
                 });
             }
@@ -49,7 +47,6 @@ export default defineEventHandler(async (event) => {
         if (error.statusCode === 404) throw error;
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
     }
