@@ -124,7 +124,7 @@ async function handleLogin() {
 
       <!-- Footer Info -->
       <p class="text-center mt-8 text-slate-500 text-xs">
-        &copy; {{ new Date().getFullYear() }} Sistema Jurídico. Todos os direitos reservados.
+        &copy; {{ new Date().getFullYear() }} Gabriel Rangel Sepulveda. Todos os direitos reservados.
       </p>
     </div>
   </div>

@@ -9,7 +9,7 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "transpile-sql": "node server/database/sql-transpile.ts run",
-    "test": "export NODE_ENV=test && vitest run test/nuxt"
+    "test": "export NODE_ENV=test && vitest run"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",

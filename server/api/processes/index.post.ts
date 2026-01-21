@@ -1,4 +1,4 @@
-import { db } from "../../database/connection";
+import { databaseArgs, db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const { 
@@ -16,7 +16,6 @@ export default defineEventHandler(async (event) => {
     if (!client_id || !process_number) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "Client ID and Process Number are required",
         });
     }
@@ -29,16 +28,16 @@ export default defineEventHandler(async (event) => {
                     INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, target)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `,
-                args: [
+                args: databaseArgs(
                     client_id, 
                     process_number, 
-                    tribunal ?? null, 
-                    description ?? null, 
+                    tribunal, 
+                    description,
                     status || 'Ativo', 
                     value_charged || 0, 
-                    payment_method ?? null, 
-                    target ?? null
-                ]
+                    payment_method, 
+                    target
+                )
             });
             
             const processId = Number(result.lastInsertRowid);
@@ -99,13 +98,11 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                message: "Conflict",
                 message: "Process with this number already exists",
             });
         }
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
     }

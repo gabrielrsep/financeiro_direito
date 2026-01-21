@@ -248,7 +248,7 @@ async function handleSetup() {
 
       <!-- Footer Info -->
       <p class="text-center mt-8 text-slate-500 text-sm">
-        &copy; {{ new Date().getFullYear() }} Sistema Jurídico. Gestão Inteligente para Advogados.
+        &copy; {{ new Date().getFullYear() }} Gabriel Rangel Sepulveda. Gestão Inteligente para Advogados.
       </p>
     </div>
   </div>
