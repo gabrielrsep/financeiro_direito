@@ -21,6 +21,22 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const sameCharacters = (username: string) => {
+    let char = username[0];
+    for(const c of username) {
+      if (c !== char)
+        return false;
+    }
+    return true;
+  }
+
+  if (!username.match(/^\w{3,}$/) || sameCharacters(username)) {
+    throw createError({
+      statusCode: 400,
+      message: "O nome de usuário deve conter pelo menos 3 caracteres diferentes e conter apenas letras, números e sublinhados.",
+    });
+  }
+
   // Check if username already exists
   const existingUser = await db.execute({
     sql: "SELECT id FROM users WHERE username = ? OR email = ?",
@@ -34,7 +50,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password, 12);
 
   try {
     const result = await db.execute({
