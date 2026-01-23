@@ -28,6 +28,7 @@ async function handleLogin() {
   if (result.success) {
     navigateTo('/')
   } else {
+    console.log(result)
     errorMessage.value = result.error || 'Falha na autenticação.'
   }
 

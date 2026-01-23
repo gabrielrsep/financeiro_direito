@@ -1,4 +1,6 @@
 export default `INSERT INTO offices (name) VALUES ('Escritório Principal');
+INSERT INTO users (office_id, username, email, password, name) VALUES
+(1, 'admin', 'admin@escritorio.com.br', '$2a$12$qeKHhtjtUQ7Tx7kbqwKnAOzFsrHwgkBh/Hi0is5q8LbNig0WRK1UC', 'Administrador');
 INSERT INTO clients (name, document, contact, address) VALUES
 ('Empresa A Ltda', '12.345.678/0001-90', 'contato@empresaa.com.br', 'Av. Paulista, 1000 - São Paulo, SP'),
 ('João da Silva', '123.456.789-00', '(11) 99999-8888', 'Rua das Flores, 123 - São Paulo, SP'),

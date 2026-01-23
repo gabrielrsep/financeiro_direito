@@ -22,7 +22,6 @@ export default defineEventHandler(async (event) => {
     if (!id) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "ID is required",
         });
     }
@@ -38,7 +37,6 @@ export default defineEventHandler(async (event) => {
             if (checkResult.rows.length === 0) {
                 throw createError({
                     statusCode: 404,
-                    message: "Not Found",
                     message: "Process not found",
                 });
             }
@@ -87,7 +85,6 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                message: "Conflict",
                 message: "Process with this number already exists",
             });
         }
@@ -96,7 +93,6 @@ export default defineEventHandler(async (event) => {
         throw createError({
             statusCode: 500,
             message: "Internal Server Error",
-            message: error.message,
         });
     }
 });

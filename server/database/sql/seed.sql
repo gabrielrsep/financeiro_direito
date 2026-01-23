@@ -5,8 +5,8 @@ INSERT INTO offices (name) VALUES ('Escritório Principal');
 
 -- Insert Users
 -- Password is 'admin123'
--- INSERT INTO users (office_id, username, email, password, name) VALUES
--- (1, 'admin', 'admin@escritorio.com.br', '$2b$10$r8jfUQOU4HM6ivySi3Ms/OQL3wH19LJf/DopI3btgtpm/AuCm97A6', 'Administrador');
+INSERT INTO users (office_id, username, email, password, name) VALUES
+(1, 'admin', 'admin@escritorio.com.br', '$2a$12$qeKHhtjtUQ7Tx7kbqwKnAOzFsrHwgkBh/Hi0is5q8LbNig0WRK1UC', 'Administrador');
 
 -- Insert Clients
 INSERT INTO clients (name, document, contact, address) VALUES

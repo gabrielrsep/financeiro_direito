@@ -11,7 +11,6 @@ export default defineEventHandler(async (event) => {
     if (!id || !name || !document) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "Client ID, name, and document are required",
         });
     }
@@ -27,7 +26,6 @@ export default defineEventHandler(async (event) => {
         if (result.rowsAffected === 0) {
             throw createError({
                 statusCode: 404,
-                message: "Not Found",
                 message: "Client not found",
             });
         }
@@ -46,7 +44,6 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                message: "Conflict",
                 message: "Client with this document already exists",
             });
         }
@@ -54,7 +51,6 @@ export default defineEventHandler(async (event) => {
         await writeFile("error.txt", error.message);
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
     }

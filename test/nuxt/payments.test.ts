@@ -129,4 +129,20 @@ describe('Payments API', async () => {
 
      expect(response).toHaveProperty('success', true)
   })
+
+  it('should list payments history', async () => {
+    const res = await $fetch<any>('/api/payments/history')
+    expect(res.success).toBe(true)
+    expect(res.data.length).toBeGreaterThan(0)
+  })
+
+  it('should list payments history with filters', async () => {
+    if (!createdClientId) throw new Error('Client not created')
+    
+    const res = await $fetch<any>('/api/payments/history', {
+        params: { clientId: createdClientId }
+    })
+    expect(res.success).toBe(true)
+    expect(res.data.every((p: any) => p.client_id === createdClientId)).toBe(true)
+  })
 })

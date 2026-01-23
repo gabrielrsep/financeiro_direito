@@ -33,7 +33,6 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: error.statusCode || 500,
-            message: error.message || "Internal Server Error",
             message: error.message,
         });
     }

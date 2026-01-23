@@ -1,18 +1,5 @@
 
 import { db, databaseArgs } from "~~/server/database/connection";
-import pino from "pino";
-
-const logger = pino({
-    transport: {
-        target: 'pino-roll',
-        options: {
-            file: 'logs/error.log',
-            frequency: 'daily',
-            maxSize: '10MB',
-            maxFiles: 7,
-        },
-    },
-});
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
@@ -21,7 +8,6 @@ export default defineEventHandler(async (event) => {
     if (!name || !document) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "Name and Document are required",
         });
     }
@@ -52,14 +38,11 @@ export default defineEventHandler(async (event) => {
         if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
             throw createError({
                 statusCode: 409,
-                message: "Conflict",
                 message: "Client with this document already exists",
             });
         }
-        logger.error(error.message);
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
 

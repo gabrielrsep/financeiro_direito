@@ -1,4 +1,3 @@
-import { devLogger } from "~~/server/util/logger";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
@@ -88,7 +87,6 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
     }

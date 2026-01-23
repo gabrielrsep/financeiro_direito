@@ -1,3 +1,4 @@
+import { devLogger } from "~~/server/util/logger";
 import { db } from "../../database/connection";
 import bcrypt from "bcrypt";
 
@@ -59,6 +60,8 @@ export default defineEventHandler(async (event) => {
 
   // 3. Verify Password
   const isPasswordValid = await bcrypt.compare(password, user.password as string);
+
+  devLogger.info(isPasswordValid)
 
   if (!isPasswordValid) {
     await recordLoginAttempt(identifier, ipAddress);

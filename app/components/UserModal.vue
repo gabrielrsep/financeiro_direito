@@ -55,7 +55,7 @@ async function handleSubmit() {
     emit('saved')
     emit('close')
   } catch (err: any) {
-    error.value = err.data?.statusMessage || 'Erro ao salvar usuário'
+    error.value = err.data?.message || 'Erro ao salvar usuário'
   } finally {
     loading.value = false
   }

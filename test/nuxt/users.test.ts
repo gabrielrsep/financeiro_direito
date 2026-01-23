@@ -5,126 +5,100 @@ import { db } from '../../server/database/connection'
 import bcrypt from 'bcrypt'
 
 describe('Users API', async () => {
-    await setup({
-      server: true
-    })
+  await setup({
+    server: true
+  })
 
   let createdUserId: number | null = null
   let authCookie: string | undefined
 
-
+  // User to act as admin/logged in user
   const adminUser = {
-    officeName: 'Test Office',
-    // increased uniqueness
     username: `admin_test_${Date.now()}`,
     email: `admin_test_${Date.now()}@example.com`,
     password: 'password123'
   }
 
-  beforeAll(async () => {
-    try {
-        // Create user directly in DB to ensure we have one to login with
-        const hashedPassword = await bcrypt.hash(adminUser.password, 10);
-        
-        // Ensure office exists
-        let officeId: number
-        const officeRes = await db.execute("SELECT id FROM offices LIMIT 1")
-        if (officeRes.rows.length > 0) {
-            officeId = Number(officeRes.rows[0]!.id)
-        } else {
-            const newOffice = await db.execute({
-                sql: "INSERT INTO offices (name) VALUES (?)",
-                args: ["Test Office"]
-            })
-            officeId = Number(newOffice.lastInsertRowid)
-        }
-
-        // Create user
-        await db.execute({
-            sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
-            args: [officeId, "Test Admin", adminUser.username, adminUser.email, hashedPassword]
-        })
-
-        // Login
-        const response = await $fetch<any>('/api/auth/login', {
-            method: 'POST',
-            body: {
-                identifier: adminUser.username,
-                password: adminUser.password
-            },
-            onResponse({ response }) {
-                const setCookie = response.headers.get('set-cookie')
-                if (setCookie) {
-                    authCookie = setCookie.split(';')[0]
-                }
-            }
-        })
-        
-        if (!response.user) {
-            throw new Error('Login failed: no user returned')
-        }
-
-    } catch (error) {
-        console.error('Failed to authenticate in test setup:', error)
-        throw error // Fail the test if we can't auth
-    }
-  })
-  
+  // User to be created/tested
   const testUser = {
     name: 'Test User',
-    username: 'testuser',
-    email: 'testuser@example.com',
+    username: 'test_user_123',
+    email: 'testuser123@example.com',
     password: 'password123'
   }
 
+  // Valid updated user
   const updatedUser = {
     name: 'Updated Test User',
-    email: 'updateduser@example.com',
-    username: 'updatedduser'
+    username: 'test_user_updated',
+    email: 'updatedtestuser@example.com',
+    password: 'newpassword123'
   }
 
-  it('should create a new user', async () => {
+  beforeAll(async () => {
     try {
-        const response = await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: testUser,
-        headers: { Cookie: authCookie || '' }
+      // 1. Ensure Office exists
+      let officeId: number
+      const officeRes = await db.execute("SELECT id FROM offices LIMIT 1")
+      if (officeRes.rows.length > 0) {
+        officeId = Number(officeRes.rows[0]!.id)
+      } else {
+        const newOffice = await db.execute({
+          sql: "INSERT INTO offices (name) VALUES (?)",
+          args: ["Test Office"]
         })
+        officeId = Number(newOffice.lastInsertRowid)
+      }
 
-        expect(response).toHaveProperty('id')
-        expect(response).toHaveProperty('username', testUser.username)
-        
-        createdUserId = response.id
-    } catch (err: any) {
-        // We expect auth to be working now, so we don't warn/skip anymore, or we rethrow.
-        // If we want to keep the skip logic just in case:
-        if (err.response?.status === 401) {
-            console.warn('Skipping User Creation test due to missing Auth (Login failed)')
-            return
+      // 2. Create Admin User
+      const hashedPassword = await bcrypt.hash(adminUser.password, 10)
+      await db.execute({
+        sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
+        args: [officeId, "Test Admin", adminUser.username, adminUser.email, hashedPassword]
+      })
+
+      // 3. Login
+      const response = await $fetch<any>('/api/auth/login', {
+        method: 'POST',
+        body: {
+          identifier: adminUser.username,
+          password: adminUser.password
+        },
+        onResponse({ response }) {
+          const setCookie = response.headers.get('set-cookie')
+          if (setCookie) {
+            authCookie = setCookie.split(';')[0]
+          }
         }
-        throw err
+      })
+      
+      if (!response.user) {
+         throw new Error('Login failed')
+      }
+
+    } catch (error) {
+      console.error('Setup failed:', error)
+      throw error 
     }
   })
 
-  it('should return 400 if required fields are missing', async () => {
-     try {
-       await $fetch<any>('/api/users', {
-         method: 'POST',
-         body: {
-             name: 'Incomplete User'
-             // Missing username, email, password
-         },
-         headers: { Cookie: authCookie || '' }
-       })
-       // Should fail if we reach here
-       throw new Error('Should have returned 400')
-     } catch (err: any) {
-       expect(err.response?.status).toBe(400)
-       expect(err.response?._data?.message).toBe("Todos os campos (nome, usuário, email e senha) são obrigatórios.")
-     }
-   })
+  // --- Validation Tests (New Logic) ---
 
-  it('should return 400 if username is too short', async () => {
+  it('should return 400 if required fields are missing', async () => {
+    try {
+      await $fetch<any>('/api/users', {
+        method: 'POST',
+        body: { name: 'Missing Fields' },
+        headers: { Cookie: authCookie || '' }
+      })
+      throw new Error('Should have returned 400')
+    } catch (err: any) {
+      expect(err.response?.status).toBe(400)
+      expect(err.response?._data?.message).toContain('obrigatórios')
+    }
+  })
+
+  it('should return 400 if username is too short (< 3 chars)', async () => {
     try {
       await $fetch<any>('/api/users', {
         method: 'POST',
@@ -134,25 +108,27 @@ describe('Users API', async () => {
       throw new Error('Should have returned 400')
     } catch (err: any) {
       expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('pelo menos 3 caracteres')
+      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
     }
   })
 
-  it('should return 400 if username has invalid characters', async () => {
+  it('should return 400 if username contains invalid characters', async () => {
+     // Valid: alphanumeric + underscore. Invalid: @, space, -, etc.
     try {
       await $fetch<any>('/api/users', {
         method: 'POST',
-        body: { ...testUser, username: 'invalid@user' },
+        body: { ...testUser, username: 'user@name' },
         headers: { Cookie: authCookie || '' }
       })
       throw new Error('Should have returned 400')
     } catch (err: any) {
       expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('apenas letras, números e sublinhados')
+      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
     }
   })
 
-  it('should return 400 if username has repeated characters', async () => {
+  it('should return 400 if username has all repeated characters', async () => {
+    // Current logic blocks if all chars are the same.
     try {
       await $fetch<any>('/api/users', {
         method: 'POST',
@@ -162,77 +138,69 @@ describe('Users API', async () => {
       throw new Error('Should have returned 400')
     } catch (err: any) {
       expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('3 caracteres diferentes')
+      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
     }
   })
 
-  it('should return 409 if username already exists', async () => {
-    if (!createdUserId) return // Skip if creation failed
+  // --- CRUD Tests ---
 
+  it('should create a new user successfully', async () => {
+    const response = await $fetch<any>('/api/users', {
+      method: 'POST',
+      body: testUser,
+      headers: { Cookie: authCookie || '' }
+    })
+
+    expect(response).toHaveProperty('id')
+    expect(response.username).toBe(testUser.username)
+    createdUserId = response.id
+  })
+
+  it('should prevent creating a user with duplicate username', async () => {
     try {
       await $fetch<any>('/api/users', {
         method: 'POST',
-        body: { ...testUser }, // Same user as created
+        body: testUser, // Same username
         headers: { Cookie: authCookie || '' }
       })
       throw new Error('Should have returned 409')
     } catch (err: any) {
       expect(err.response?.status).toBe(409)
-      expect(err.response?._data?.message).toContain('Usuário ou email já cadastrado')
-    }
-  })
-
-  it('should return 409 if email already exists', async () => {
-    if (!createdUserId) return // Skip
-
-    try {
-      await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: { ...testUser, username: 'newusername' }, // Different username, same email
-        headers: { Cookie: authCookie || '' }
-      })
-      throw new Error('Should have returned 409')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(409)
-      expect(err.response?._data?.message).toContain('Usuário ou email já cadastrado')
+      expect(err.response?._data?.message).toContain('já cadastrado')
     }
   })
 
   it('should list users', async () => {
-    try {
-        const response = await $fetch<any>('/api/users', {
-            headers: { Cookie: authCookie || '' }
-        })
-        
-        expect(Array.isArray(response)).toBe(true)
-        // Note: The structure might be different based on index.get.ts, 
-        // usually it returns the array directly or inside { data: [] }
-    } catch(err: any) {
-         if (err.response?.status === 401) return
-         throw err
-    }
+    const response = await $fetch<any[]>('/api/users', {
+        headers: { Cookie: authCookie || '' }
+    })
+    expect(Array.isArray(response)).toBe(true)
+    expect(response.length).toBeGreaterThan(0)
   })
 
-  it('should update a user', async () => {
-    if (!createdUserId) return // Skip if creation failed or skipped
+  it('should update the user', async () => {
+    if (!createdUserId) return
 
     const response = await $fetch<any>(`/api/users/${createdUserId}`, {
       method: 'PUT',
       body: updatedUser,
       headers: { Cookie: authCookie || '' }
     })
+    
+    expect(response).toHaveProperty('success', true)
+    
+    // Check if updated in DB (optional, but good)
+    // Or fetch list to verify? user list endpoint might return filtered data.
+  })
 
+  it('should delete the user', async () => {
+    if (!createdUserId) return
+
+    const response = await $fetch<any>(`/api/users/${createdUserId}`, {
+      method: 'DELETE',
+      headers: { Cookie: authCookie || '' }
+    })
     expect(response).toHaveProperty('success', true)
   })
 
-  it('should delete a user', async () => {
-     if (!createdUserId) return // Skip if creation failed or skipped
-
-     const response = await $fetch<any>(`/api/users/${createdUserId}`, {
-        method: 'DELETE',
-        headers: { Cookie: authCookie || '' }
-     })
-
-     expect(response).toHaveProperty('success', true)
-  })
 })

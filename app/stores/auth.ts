@@ -26,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error: any) {
       return {
         success: false,
-        error: error.data?.statusMessage || 'Ocorreu um erro ao fazer login.'
+        error: error.data?.message || 'Ocorreu um erro ao fazer login.'
       }
     }
   }

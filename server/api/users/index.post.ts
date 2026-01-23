@@ -1,4 +1,5 @@
-import { db } from "../../database/connection";
+import { validCredentials } from "~~/server/util/validation/http";
+import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
 
 export default defineEventHandler(async (event) => {
@@ -21,21 +22,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const sameCharacters = (username: string) => {
-    let char = username[0];
-    for(const c of username) {
-      if (c !== char)
-        return false;
-    }
-    return true;
-  }
-
-  if (!username.match(/^\w{3,}$/) || sameCharacters(username)) {
-    throw createError({
-      statusCode: 400,
-      message: "O nome de usuário deve conter pelo menos 3 caracteres diferentes e conter apenas letras, números e sublinhados.",
-    });
-  }
+  validCredentials({username, email, password})
 
   // Check if username already exists
   const existingUser = await db.execute({
@@ -50,7 +37,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
 
   try {
     const result = await db.execute({

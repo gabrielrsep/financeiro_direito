@@ -13,7 +13,7 @@ const userToDelete = ref<any>(null)
 async function fetchUsers() {
   loading.value = true
   try {
-    users.value = await $fetch('/api/users')
+    users.value = await $fetch<any[]>('/api/users')
   } catch (error) {
     console.error('Erro ao carregar usuários:', error)
   } finally {

@@ -7,7 +7,6 @@ export default defineEventHandler(async (event) => {
     if ((!process_id && !client_id) || value_paid === undefined) {
         throw createError({
             statusCode: 400,
-            message: "Bad Request",
             message: "Process ID or Client ID, and Value Paid are required",
         });
     }
@@ -46,7 +45,6 @@ export default defineEventHandler(async (event) => {
         console.error(error);
         throw createError({
             statusCode: 500,
-            message: "Internal Server Error",
             message: error.message,
         });
     }

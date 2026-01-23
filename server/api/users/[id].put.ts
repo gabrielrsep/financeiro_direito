@@ -1,4 +1,6 @@
-import { db } from "../../database/connection";
+import { passwordError, validCredentials } from "~~/server/util/validation/http";
+import { validPassword } from "~~/server/util/validation/func";
+import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
 
 export default defineEventHandler(async (event) => {
@@ -30,6 +32,8 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  validCredentials({username, email})
+
   // Check if user exists and belongs to the same office
   const user = await db.execute({
     sql: "SELECT id FROM users WHERE id = ? AND office_id = ?",
@@ -58,7 +62,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
+      if (!validPassword(password)) {
+        throw passwordError()
+      }
+      const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
       await db.execute({
         sql: "UPDATE users SET name = ?, username = ?, email = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [name, username, email, hashedPassword, id],
