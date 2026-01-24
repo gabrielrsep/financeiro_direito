@@ -2,6 +2,8 @@ import { passwordError, validCredentials } from "~~/server/util/validation/http"
 import { validPassword } from "~~/server/util/validation/func";
 import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
+import { findFormDataValue, getFormDataValue } from "~~/server/util/upload";
+import { put, del } from "@vercel/blob";
 
 export default defineEventHandler(async (event) => {
   const session = getCookie(event, "auth_session");
@@ -22,8 +24,12 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const body = await readBody(event);
-  const { name, username, email, password } = body;
+  const body = await readMultipartFormData(event);
+  const name = getFormDataValue(body, "name");
+  const username = getFormDataValue(body, "username");
+  const email = getFormDataValue(body, "email");
+  const password = getFormDataValue(body, "password");
+  const avatar = findFormDataValue(body, "avatar_url");
 
   if (!name || !username || !email) {
     throw createError({
@@ -36,7 +42,7 @@ export default defineEventHandler(async (event) => {
 
   // Check if user exists and belongs to the same office
   const user = await db.execute({
-    sql: "SELECT id FROM users WHERE id = ? AND office_id = ?",
+    sql: "SELECT id, avatar_url FROM users WHERE id = ? AND office_id = ?",
     args: [id, office_id],
   });
 
@@ -60,25 +66,45 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const transaction = await db.transaction('write')
+
   try {
+    if(avatar) {
+      const avatarUrl = user.rows[0].avatar_url as string;
+      if (avatarUrl) {
+          await del(avatarUrl);
+      }
+      const blob = await put(`${id}/avatar`, avatar.data, {
+        access: "public",
+        contentType: avatar.type,
+        addRandomSuffix: true,
+      })
+      await transaction.execute({
+        sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
+        args: [blob.url, id],
+      })
+    }
     if (password) {
       if (!validPassword(password)) {
         throw passwordError()
       }
       const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
-      await db.execute({
+      await transaction.execute({
         sql: "UPDATE users SET name = ?, username = ?, email = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [name, username, email, hashedPassword, id],
       });
     } else {
-      await db.execute({
+      await transaction.execute({
         sql: "UPDATE users SET name = ?, username = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [name, username, email, id],
       });
     }
 
+    await transaction.commit()
+
     return { success: true };
   } catch (error: any) {
+    await transaction.rollback()
     throw createError({
       statusCode: 500,
       message: "Erro ao atualizar usuário.",

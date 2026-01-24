@@ -1,9 +1,13 @@
 import { validCredentials } from "~~/server/util/validation/http";
 import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
+import { put, PutBlobResult } from "@vercel/blob";
+import { findFormDataValue, getFormDataValue } from "~~/server/util/upload";
+import { devLogger } from "~~/server/util/logger";
 
 export default defineEventHandler(async (event) => {
   const session = getCookie(event, "auth_session");
+  
   if (!session) {
     throw createError({
       statusCode: 401,
@@ -12,8 +16,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const { office_id } = JSON.parse(session);
-  const body = await readBody(event);
-  const { name, username, email, password } = body;
+  const body = await readMultipartFormData(event);
+
+  const name = getFormDataValue(body, "name");
+  const username = getFormDataValue(body, "username");
+  const email = getFormDataValue(body, "email");
+  const password = getFormDataValue(body, "password");
+  const avatar = findFormDataValue(body, "avatar");
 
   if (!name || !username || !email || !password) {
     throw createError({
@@ -45,13 +54,30 @@ export default defineEventHandler(async (event) => {
       args: [office_id, name, username, email, hashedPassword],
     });
 
+    const userId = Number(result.lastInsertRowid);
+    let blob: PutBlobResult | null = null;
+
+    if(avatar) {
+      blob = await put(`${userId}/avatar`, avatar.data, {
+        access: "public",
+        contentType: avatar.type,
+        addRandomSuffix: true,
+      })
+      await db.execute({
+        sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
+        args: [blob.url, userId],
+      })
+    }
+
     return {
-      id: Number(result.lastInsertRowid),
+      id: userId,
       name,
       username,
       email,
+      avatar_url: blob?.url,
     };
   } catch (error: any) {
+    devLogger.error(error)
     throw createError({
       statusCode: 500,
       message: "Erro ao criar usuário.",

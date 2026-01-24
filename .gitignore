@@ -25,3 +25,5 @@ logs
 
 server/database/**/*.sqlite
 server/database/**/*.sql
+.vercel
+.env*.local

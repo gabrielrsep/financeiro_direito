@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, User, Mail, Lock, CheckCircle } from 'lucide-vue-next'
+import { X, User, Mail, Lock, CheckCircle, Camera } from 'lucide-vue-next'
 
 const props = defineProps<{
   user?: any
@@ -15,6 +15,10 @@ const form = ref({
   password: ''
 })
 
+const fileInput = ref<HTMLInputElement | null>(null)
+const avatarPreview = ref<string | null>(null)
+const avatarFile = ref<File | null>(null)
+
 const loading = ref(false)
 const error = ref('')
 
@@ -27,6 +31,7 @@ watch(() => props.isOpen, (newVal) => {
         email: props.user.email || '',
         password: '' // Don't fill password on edit
       }
+      avatarPreview.value = props.user.avatar_url || null
     } else {
       form.value = {
         name: '',
@@ -34,10 +39,31 @@ watch(() => props.isOpen, (newVal) => {
         email: '',
         password: ''
       }
+      avatarPreview.value = null
     }
+    avatarFile.value = null
     error.value = ''
   }
 })
+
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files && input.files[0]) {
+    const file = input.files[0]
+    avatarFile.value = file
+    
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      avatarPreview.value = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
 
 async function handleSubmit() {
   loading.value = true
@@ -47,9 +73,20 @@ async function handleSubmit() {
     const url = props.user ? `/api/users/${props.user.id}` : '/api/users'
     const method = props.user ? 'PUT' : 'POST'
     
+    const formData = new FormData()
+    formData.append('name', form.value.name)
+    formData.append('username', form.value.username)
+    formData.append('email', form.value.email)
+    if (form.value.password) {
+      formData.append('password', form.value.password)
+    }
+    if (avatarFile.value) {
+      formData.append('avatar_url', avatarFile.value)
+    }
+
     await $fetch(url, {
       method,
-      body: form.value
+      body: formData
     })
     
     emit('saved')
@@ -78,6 +115,27 @@ async function handleSubmit() {
       <form @submit.prevent="handleSubmit" class="p-6 space-y-4 flex-1 overflow-y-auto overscroll-contain">
         <div v-if="error" class="p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg border border-red-100 dark:border-red-900/30">
           {{ error }}
+        </div>
+
+        <!-- Avatar Upload -->
+        <div class="flex flex-col items-center justify-center space-y-3">
+          <div class="relative group cursor-pointer" @click="triggerFileInput">
+            <div class="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-500">
+              <img v-if="avatarPreview" :src="avatarPreview" class="w-full h-full object-cover" alt="Preview" />
+              <User v-else class="w-10 h-10 text-slate-400" />
+            </div>
+            <div class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera class="w-8 h-8 text-white" />
+            </div>
+            <input 
+              ref="fileInput"
+              type="file" 
+              accept="image/*"
+              class="hidden"
+              @change="handleFileChange"
+            />
+          </div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Clique para adicionar uma foto</span>
         </div>
 
         <div class="space-y-1.5">

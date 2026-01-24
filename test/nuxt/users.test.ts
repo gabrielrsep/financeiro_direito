@@ -1,12 +1,27 @@
 
-import { describe, it, expect, beforeAll } from 'vitest'
-import { $fetch, setup } from '@nuxt/test-utils/e2e'
+
+import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { $fetch, fetch, setup } from '@nuxt/test-utils'
 import { db } from '../../server/database/connection'
 import bcrypt from 'bcrypt'
+import NodeFormData from 'form-data'
+import { Buffer } from 'node:buffer'
+import { devLogger } from '~~/server/util/logger'
+
+
+
+import { resolve } from 'node:path'
+
+// ...
 
 describe('Users API', async () => {
   await setup({
-    server: true
+    server: true,
+    nuxtConfig: {
+      alias: {
+        '@vercel/blob': resolve(process.cwd(), 'test/mocks/vercel-blob.ts')
+      }
+    }
   })
 
   let createdUserId: number | null = null
@@ -85,89 +100,123 @@ describe('Users API', async () => {
   // --- Validation Tests (New Logic) ---
 
   it('should return 400 if required fields are missing', async () => {
-    try {
-      await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: { name: 'Missing Fields' },
-        headers: { Cookie: authCookie || '' }
+    const formData = new NodeFormData()
+    formData.append('name', 'Missing Fields')
+    // Missing other fields
+
+    const response = await fetch('/api/users', {
+      method: 'POST',
+        body: formData as any,
+        headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
       })
-      throw new Error('Should have returned 400')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('obrigatórios')
-    }
+      const data = await response.json()
+      expect(response.status).toBe(400)
+      expect(data.message).toContain('obrigatórios')
   })
 
   it('should return 400 if username is too short (< 3 chars)', async () => {
-    try {
-      await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: { ...testUser, username: 'ab' },
-        headers: { Cookie: authCookie || '' }
-      })
-      throw new Error('Should have returned 400')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
-    }
+    const formData = new NodeFormData()
+    formData.append('name', testUser.name)
+    formData.append('username', 'ab')
+    formData.append('email', testUser.email)
+    formData.append('password', testUser.password)
+
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+    })
+    const data = await response.json()
+    expect(response.status).toBe(400)
+    expect(data.message).toContain('O nome de usuário deve começar com uma letra')
   })
 
   it('should return 400 if username contains invalid characters', async () => {
-     // Valid: alphanumeric + underscore. Invalid: @, space, -, etc.
-    try {
-      await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: { ...testUser, username: 'user@name' },
-        headers: { Cookie: authCookie || '' }
-      })
-      throw new Error('Should have returned 400')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
-    }
+    // Valid: alphanumeric + underscore. Invalid: @, space, -, etc.
+    const formData = new NodeFormData()
+    formData.append('name', testUser.name)
+    formData.append('username', 'user@name')
+    formData.append('email', testUser.email)
+    formData.append('password', testUser.password)
+
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+    })
+    const data = await response.json()
+    expect(response.status).toBe(400)
+    expect(data.message).toContain('O nome de usuário deve começar com uma letra')
   })
 
   it('should return 400 if username has all repeated characters', async () => {
     // Current logic blocks if all chars are the same.
-    try {
-      await $fetch<any>('/api/users', {
+    const formData = new NodeFormData()
+    formData.append('name', testUser.name)
+    formData.append('username', 'aaaaa')
+    formData.append('email', testUser.email)
+    formData.append('password', testUser.password)
+
+    const response = await fetch('/api/users', {
         method: 'POST',
-        body: { ...testUser, username: 'aaaaa' },
-        headers: { Cookie: authCookie || '' }
+        body: formData.getBuffer() as any,
+        headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
       })
-      throw new Error('Should have returned 400')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(400)
-      expect(err.response?._data?.message).toContain('O nome de usuário deve começar com uma letra')
-    }
+    const data = await response.json()
+    expect(response.status).toBe(400)
+    expect(data.message).toContain('O nome de usuário deve começar com uma letra')
   })
 
   // --- CRUD Tests ---
 
-  it('should create a new user successfully', async () => {
-    const response = await $fetch<any>('/api/users', {
+  it('should create a new user successfully with avatar', async () => {
+    const testUser = {
+      name: 'Test User',
+      username: 'testuser_' + Date.now(),
+      email: 'testuser' + Date.now() + '@example.com',
+      password: 'testpassword'
+    }
+    const formData = new NodeFormData()
+    formData.append('name', testUser.name)
+    formData.append('username', testUser.username)
+    formData.append('email', testUser.email)
+    formData.append('password', testUser.password)
+    
+    // Create a mock file
+
+    formData.append('avatar', Buffer.from('avatar'), 'avatar.png')
+
+    const response = await fetch('/api/users', {
       method: 'POST',
-      body: testUser,
-      headers: { Cookie: authCookie || '' }
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
     })
 
-    expect(response).toHaveProperty('id')
-    expect(response.username).toBe(testUser.username)
-    createdUserId = response.id
+    const data = await response.json()
+
+    devLogger.info(data)
+    
+    expect(data.id).toBeDefined()
+    expect(data.username).toBe(testUser.username)
+    expect(data.avatar_url).toBe('https://fake-url.com/avatar.png') // Check if mock URL is returned
+    createdUserId = Number(data.id)
   })
 
   it('should prevent creating a user with duplicate username', async () => {
-    try {
-      await $fetch<any>('/api/users', {
-        method: 'POST',
-        body: testUser, // Same username
-        headers: { Cookie: authCookie || '' }
-      })
-      throw new Error('Should have returned 409')
-    } catch (err: any) {
-      expect(err.response?.status).toBe(409)
-      expect(err.response?._data?.message).toContain('já cadastrado')
-    }
+    const formData = new NodeFormData()
+    formData.append('name', testUser.name)
+    formData.append('username', testUser.username) // Same username
+    formData.append('email', 'otheremail@example.com')
+    formData.append('password', testUser.password)
+
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+    })
+    const data = await response.json()
+    expect(response.status).toBe(409)
+    expect(data.message).toContain('já cadastrado')
   })
 
   it('should list users', async () => {
@@ -178,29 +227,45 @@ describe('Users API', async () => {
     expect(response.length).toBeGreaterThan(0)
   })
 
-  it('should update the user', async () => {
+  it('should update the user with new avatar', async () => {
     if (!createdUserId) return
 
-    const response = await $fetch<any>(`/api/users/${createdUserId}`, {
+    const formData = new NodeFormData()
+    formData.append('name', updatedUser.name)
+    formData.append('username', updatedUser.username)
+    formData.append('email', updatedUser.email)
+    formData.append('password', updatedUser.password)
+
+
+    // Update avatar
+    const buffer = Buffer.from('new fake image content')
+    formData.append('avatar_url', buffer, 'new_avatar.png')
+
+    const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'PUT',
-      body: updatedUser,
-      headers: { Cookie: authCookie || '' }
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
     })
     
-    expect(response).toHaveProperty('success', true)
+    const data = await response.json()
+    expect(response.status).toBe(200)
+    expect(data).toHaveProperty('success', true)
     
-    // Check if updated in DB (optional, but good)
-    // Or fetch list to verify? user list endpoint might return filtered data.
+    // Check key in mock calls if needed, or verify DB state if we had a way to check helper DB function
+    // For now, response success is enough
   })
 
   it('should delete the user', async () => {
     if (!createdUserId) return
 
-    const response = await $fetch<any>(`/api/users/${createdUserId}`, {
+    const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'DELETE',
       headers: { Cookie: authCookie || '' }
     })
-    expect(response).toHaveProperty('success', true)
+    const data = await response.json()
+    expect(response.status).toBe(200)
+    expect(data).toHaveProperty('success', true)
   })
 
 })
+

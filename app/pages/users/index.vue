@@ -130,8 +130,9 @@ onMounted(fetchUsers)
             >
               <td class="px-6 py-4">
                 <div class="flex items-center">
-                  <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 mr-3 font-bold text-xs uppercase">
-                    {{ user.name.substring(0, 2) }}
+                  <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 mr-3 font-bold text-xs uppercase overflow-hidden ring-2 ring-transparent group-hover:ring-blue-500/20 transition-all">
+                    <img v-if="user.avatar_url" :src="user.avatar_url" class="w-full h-full object-cover" :alt="user.name" />
+                    <span v-else>{{ user.name.substring(0, 2) }}</span>
                   </div>
                   <div>
                     <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ user.name }}</div>
