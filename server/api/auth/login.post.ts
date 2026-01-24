@@ -61,8 +61,6 @@ export default defineEventHandler(async (event) => {
   // 3. Verify Password
   const isPasswordValid = await bcrypt.compare(password, user.password as string);
 
-  devLogger.info(isPasswordValid)
-
   if (!isPasswordValid) {
     await recordLoginAttempt(identifier, ipAddress);
     throw createError({
@@ -85,6 +83,7 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     office_id: user.office_id,
     office_name: user.office_name,
+    avatar_url: user.avatar_url,
   };
 
   setCookie(event, "auth_session", JSON.stringify(sessionData), {

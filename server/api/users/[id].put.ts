@@ -2,8 +2,8 @@ import { passwordError, validCredentials } from "~~/server/util/validation/http"
 import { validPassword } from "~~/server/util/validation/func";
 import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
-import { findFormDataValue, getFormDataValue } from "~~/server/util/upload";
-import { put, del } from "@vercel/blob";
+import { findFormDataValue, getFormDataValue, removeFile, uploadFile } from "~~/server/util/upload";
+import { devLogger } from "~~/server/util/logger";
 
 export default defineEventHandler(async (event) => {
   const session = getCookie(event, "auth_session");
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   const username = getFormDataValue(body, "username");
   const email = getFormDataValue(body, "email");
   const password = getFormDataValue(body, "password");
-  const avatar = findFormDataValue(body, "avatar_url");
+  const avatar = findFormDataValue(body, "avatar");
 
   if (!name || !username || !email) {
     throw createError({
@@ -72,31 +72,30 @@ export default defineEventHandler(async (event) => {
     if(avatar) {
       const avatarUrl = user.rows[0].avatar_url as string;
       if (avatarUrl) {
-          await del(avatarUrl);
+          await removeFile(avatarUrl);
       }
-      const blob = await put(`${id}/avatar`, avatar.data, {
-        access: "public",
-        contentType: avatar.type,
-        addRandomSuffix: true,
-      })
+      
+      const blob = await uploadFile(body!, "avatar", `avatar`)
       await transaction.execute({
         sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
         args: [blob.url, id],
       })
     }
+
+    await transaction.execute({
+      sql: "UPDATE users SET name = ?, username = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      args: [name, username, email, id],
+    });
+
     if (password) {
       if (!validPassword(password)) {
+        await transaction.rollback()
         throw passwordError()
       }
       const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
       await transaction.execute({
-        sql: "UPDATE users SET name = ?, username = ?, email = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [name, username, email, hashedPassword, id],
-      });
-    } else {
-      await transaction.execute({
-        sql: "UPDATE users SET name = ?, username = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [name, username, email, id],
+        sql: "UPDATE users SET password = ? WHERE id = ?",
+        args: [hashedPassword, id],
       });
     }
 
@@ -104,6 +103,7 @@ export default defineEventHandler(async (event) => {
 
     return { success: true };
   } catch (error: any) {
+    devLogger.error(error)
     await transaction.rollback()
     throw createError({
       statusCode: 500,

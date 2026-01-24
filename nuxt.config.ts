@@ -1,15 +1,22 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+
+const { NODE_ENV } = process.env
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   css: ['~/assets/css/tailwind.css'],
+  sourcemap: NODE_ENV === "development" ? true : false,
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
-    '@nuxt/test-utils/module'
+    '@nuxt/test-utils/module',
+    '@nuxt/image'
   ],
   colorMode: {
     classSuffix: ''
+  },
+  nitro: {
+    ignore: NODE_ENV === "development" ? ["/dev/*"] : []
   }
 })

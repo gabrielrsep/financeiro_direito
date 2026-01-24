@@ -81,7 +81,7 @@ async function handleSubmit() {
       formData.append('password', form.value.password)
     }
     if (avatarFile.value) {
-      formData.append('avatar_url', avatarFile.value)
+      formData.append('avatar', avatarFile.value)
     }
 
     await $fetch(url, {

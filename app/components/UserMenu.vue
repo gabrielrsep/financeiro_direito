@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChevronDown, Settings, LogOut } from 'lucide-vue-next'
+import Avatar from './Avatar.vue'
 
 const authStore = useAuthStore()
 const isOpen = ref(false)
@@ -39,7 +40,7 @@ async function handleLogout() {
       class="flex items-center px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 group"
     >
       <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold uppercase mr-2 shadow-sm">
-        {{ authStore.user?.name.substring(0, 2) }}
+        <Avatar :user="authStore.user" />
       </div>
       <span class="text-xs font-bold text-slate-700 dark:text-slate-300 mr-2 max-w-[120px] truncate">
         {{ authStore.user?.name }}
