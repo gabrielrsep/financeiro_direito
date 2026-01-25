@@ -1,8 +1,8 @@
 import type { MultiPartData } from "h3";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { nanoid } from "nanoid";
-import { del, put, PutBlobResult } from "@vercel/blob";
-import { devLogger } from "./logger";
+import { del, put, type PutBlobResult } from "@vercel/blob";
+import { extname } from "node:path";
 
 const DEV_STORAGE_PATH = "server/storage"
 
@@ -19,9 +19,13 @@ export const findFormDataValue = (body: MultiPartData[] | undefined, key: string
 
 export const getDevFileUrl = (path: string) => `/api/dev/file?path=${path}`
 
-export async function uploadFile(body: MultiPartData[], key: string, path: string) : Promise<{url: string} | PutBlobResult> {
+export interface UploadFileOptions {
+    mimeType?: string[]
+    fileSize?: number
+}
+
+export async function uploadFile(body: MultiPartData[], key: string, path: string, options: UploadFileOptions = {}) : Promise<{url: string} | PutBlobResult> {
     const item = findFormDataValue(body, key);
-    devLogger.info(item)
     if (!item) {
         throw createError({
             statusCode: 400,
@@ -29,12 +33,33 @@ export async function uploadFile(body: MultiPartData[], key: string, path: strin
         });
     }
 
+    if(options.fileSize && item.data.length > options.fileSize) {
+        throw createError({
+            statusCode: 400,
+            message: `Arquivo maior que o permitido`,
+        });
+    }
+
+    if(options.mimeType) {
+        if(!item.type) {
+            throw createError({
+                statusCode: 400,
+                message: `Tipo de arquivo não informado`,
+            });
+        }
+        if(!options.mimeType.includes(item.type)) {
+            throw createError({
+                statusCode: 400,
+                message: `Tipo de arquivo não permitido`,
+            });
+        }
+    }
+
     const randomKey = nanoid()
-    const fileName = `${randomKey}.${item.type?.split("/")[1]}`
+    const extension = item.filename ? extname(item.filename) : `.${item.type?.split("/")[1] || 'bin'}`;
+    const fileName = `${randomKey}${extension}`
     switch (process.env.NODE_ENV) {
         case "development":
-            devLogger.info("Uploading file to development storage")
-            devLogger.info(`${DEV_STORAGE_PATH}/${path}/${fileName}`)
             await mkdir(`${DEV_STORAGE_PATH}/${path}`, { recursive: true })
             await writeFile(`${DEV_STORAGE_PATH}/${path}/${fileName}`, item.data);
             return {
@@ -45,11 +70,12 @@ export async function uploadFile(body: MultiPartData[], key: string, path: strin
                 access: "public",
                 contentType: item.type,
             })
+        default:
+            throw createError({
+                statusCode: 500,
+                message: "Ambiente não configurado para upload.",
+            })
     }
-    throw createError({
-        statusCode: 500,
-        message: "Erro ao enviar arquivo.",
-    })
 }
 
 export function removeFile(path: string) {

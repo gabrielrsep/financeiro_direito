@@ -11,12 +11,11 @@ export default defineNuxtConfig({
     '@nuxtjs/color-mode',
     '@pinia/nuxt',
     '@nuxt/test-utils/module',
-    '@nuxt/image'
   ],
   colorMode: {
     classSuffix: ''
   },
   nitro: {
-    ignore: NODE_ENV === "development" ? ["/dev/*"] : []
+    ignore: NODE_ENV === "development" ? [] : ["**/api/dev/*"]
   }
 })

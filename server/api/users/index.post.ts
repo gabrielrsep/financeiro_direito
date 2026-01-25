@@ -1,7 +1,7 @@
 import { validCredentials } from "~~/server/util/validation/http";
 import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
-import { put, PutBlobResult } from "@vercel/blob";
+import type { PutBlobResult } from "@vercel/blob";
 import { findFormDataValue, getFormDataValue, uploadFile } from "~~/server/util/upload";
 import { devLogger } from "~~/server/util/logger";
 
@@ -58,7 +58,10 @@ export default defineEventHandler(async (event) => {
 
     let blob: {url: string} | PutBlobResult | null = null;
     if(avatar) {
-      blob = await uploadFile(body!, "avatar", 'avatar')
+      blob = await uploadFile(body!, "avatar", 'avatar', {
+        mimeType: ["image/jpeg", "image/png", "image/jpg"],
+        fileSize: 1024 * 1024 * 2
+      })
       await db.execute({
         sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
         args: [blob.url, userId],

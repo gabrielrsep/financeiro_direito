@@ -75,7 +75,10 @@ export default defineEventHandler(async (event) => {
           await removeFile(avatarUrl);
       }
       
-      const blob = await uploadFile(body!, "avatar", `avatar`)
+      const blob = await uploadFile(body!, "avatar", 'avatar', {
+        mimeType: ["image/jpeg", "image/png", "image/jpg"],
+        fileSize: 1024 * 1024 * 2
+      })
       await transaction.execute({
         sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
         args: [blob.url, id],
