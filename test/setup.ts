@@ -1,5 +1,4 @@
 import { registerEndpoint } from '@nuxt/test-utils/runtime'
-import { beforeAll } from 'vitest'
 
 // Mock global para a rota de auth
 // Isso vai impedir o erro 404 em todos os testes que acionam o middleware

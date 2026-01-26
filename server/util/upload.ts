@@ -66,10 +66,14 @@ export async function uploadFile(body: MultiPartData[], key: string, path: strin
                 url: getDevFileUrl(`${path}/${fileName}`)
             }
         case "production":
-            return await put(`${path}/${fileName}`, item.data, {
+            return put(`${path}/${fileName}`, item.data, {
                 access: "public",
                 contentType: item.type,
             })
+        case "test":
+             return {
+                 url: 'https://fake-url.com/avatar.png'
+             }
         default:
             throw createError({
                 statusCode: 500,

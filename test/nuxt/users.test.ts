@@ -1,18 +1,15 @@
 
 
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils'
-import { db } from '../../server/database/connection'
+import { db } from '~~/server/database/connection'
 import bcrypt from 'bcrypt'
 import NodeFormData from 'form-data'
 import { Buffer } from 'node:buffer'
 import { devLogger } from '~~/server/util/logger'
 
-
-
 import { resolve } from 'node:path'
 
-// ...
 
 describe('Users API', async () => {
   await setup({
@@ -184,7 +181,7 @@ describe('Users API', async () => {
     
     // Create a mock file
 
-    formData.append('avatar', Buffer.from('avatar'), 'avatar.png')
+    formData.append('avatar', Buffer.from('avatar'), { filename: 'avatar.png', contentType: 'image/png' })
 
     const response = await fetch('/api/users', {
       method: 'POST',
@@ -239,7 +236,7 @@ describe('Users API', async () => {
 
     // Update avatar
     const buffer = Buffer.from('new fake image content')
-    formData.append('avatar_url', buffer, 'new_avatar.png')
+    formData.append('avatar', buffer, { filename: 'new_avatar.png', contentType: 'image/png' })
 
     const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'PUT',
