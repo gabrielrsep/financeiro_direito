@@ -12,20 +12,15 @@ export default defineEventHandler(async (event) => {
     const status = query.status as string;
 
     try {
-        let baseSql = `
-            FROM payments p
-            LEFT JOIN clients c ON p.client_id = c.id
-            LEFT JOIN processes pr ON p.process_id = pr.id
-        `;
         let whereConditions: string[] = [];
         let params: any[] = [];
 
         if (startDate) {
-            whereConditions.push("p.payment_date >= ?");
+            whereConditions.push("pay.payment_date >= ?");
             params.push(startDate);
         }
         if (endDate) {
-            whereConditions.push("p.payment_date <= ?");
+            whereConditions.push("pay.payment_date <= ?");
             // Append end of day time if only date is provided
             if (endDate.length === 10) {
                  params.push(endDate + ' 23:59:59');
@@ -34,11 +29,11 @@ export default defineEventHandler(async (event) => {
             }
         }
         if (clientId) {
-            whereConditions.push("p.client_id = ?");
+            whereConditions.push("pay.client_id = ?");
             params.push(clientId);
         }
         if (status) {
-            whereConditions.push("p.status = ?");
+            whereConditions.push("pay.status = ?");
             params.push(status);
         }
         
@@ -47,17 +42,23 @@ export default defineEventHandler(async (event) => {
             whereClause = " WHERE " + whereConditions.join(" AND ");
         }
 
-        const countSql = `SELECT COUNT(*) as total ${baseSql} ${whereClause}`;
+        const countSql = `SELECT COUNT(*) as total FROM payments pay ${whereClause}`;
         const dataSql = `
             SELECT 
-                p.*,
+                pay.*,
                 c.name as client_name,
-                pr.process_number
-            ${baseSql} 
+                pro.process_number
+            FROM
+                payments pay
+            JOIN processes pro ON
+                pay.process_id = pro.id
+            JOIN clients c ON pro.client_id = c.id OR c.is_recurrent = 1
             ${whereClause}
-            ORDER BY p.due_date DESC, p.payment_date DESC
+            ORDER BY pay.created_at DESC
             LIMIT ? OFFSET ?
         `;
+
+        
 
         // Execute count
         const countResult = await db.execute({

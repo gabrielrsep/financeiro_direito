@@ -3,20 +3,17 @@ import { databaseArgs, db } from "../../database/connection";
 export default defineEventHandler(async (event) => {
     const { 
         client_id, 
-        process_number, 
-        tribunal, 
         description, 
-        status, 
         value_charged, 
         payment_method,
-        target,
-        installments // { count: number, down_payment: number, first_due_date: string }
+        em_conta_details,
+        installments
     } = await readBody(event);
 
-    if (!client_id || !process_number) {
+    if (!client_id || !description) {
         throw createError({
             statusCode: 400,
-            message: "Client ID and Process Number are required",
+            message: "Client ID and Description are required",
         });
     }
 
@@ -25,41 +22,36 @@ export default defineEventHandler(async (event) => {
         try {
             const result = await tx.execute({
                 sql: `
-                    INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, target)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO services (client_id, description, value_charged, payment_method, status)
+                    VALUES (?, ?, ?, ?, ?)
                 `,
                 args: databaseArgs(
                     client_id, 
-                    process_number, 
-                    tribunal, 
-                    description,
-                    status || 'Ativo', 
+                    description, 
                     value_charged || 0, 
                     payment_method, 
-                    target
+                    'Ativo'
                 )
             });
             
-            const processId = Number(result.lastInsertRowid);
+            const serviceId = Number(result.lastInsertRowid);
 
             // Handle installments if payment method is 'em_conta'
             if (payment_method === 'em_conta' && installments) {
-
-                
                 const { count, down_payment, first_due_date } = installments;
                 
-                // 1. Handle down payment if exists
+                // Handle down payment if exists
                 if (down_payment > 0) {
                     await tx.execute({
                         sql: `
-                            INSERT INTO payments (process_id, value_paid, payment_date, status)
-                            VALUES (?, ?, ?, ?)
+                            INSERT INTO payments (service_id, client_id, value_paid, payment_date, status)
+                            VALUES (?, ?, ?, ?, ?)
                         `,
-                        args: [processId, down_payment, new Date().toISOString(), 'Pago']
+                        args: [serviceId, client_id, down_payment, new Date().toISOString(), 'Pago']
                     });
                 }
 
-                // 2. Create installments
+                // Create installments
                 const installmentValue = (value_charged - (down_payment || 0)) / count;
                 const startDate = new Date(first_due_date || new Date());
 
@@ -69,18 +61,22 @@ export default defineEventHandler(async (event) => {
                     
                     await tx.execute({
                         sql: `
-                            INSERT INTO payments (process_id, value_paid, due_date, status)
-                            VALUES (?, ?, ?, ?)
+                            INSERT INTO payments (service_id, client_id, value_paid, due_date, status)
+                            VALUES (?, ?, ?, ?, ?)
                         `,
-                        args: [processId, installmentValue, dueDate.toISOString(), 'Pendente']
+                        args: [serviceId, client_id, installmentValue, dueDate.toISOString(), 'Pendente']
                     });
                 }
 
                 const emContaDetails = `${value_charged}+${count}x${installmentValue}`;
                 await tx.execute({
-                    sql: `UPDATE processes SET em_conta_details = ? WHERE id = ?`,
-                    args: [emContaDetails, processId]
-                })
+                    sql: `
+                        UPDATE services 
+                        SET em_conta_details = ?
+                        WHERE id = ?
+                    `,
+                    args: [emContaDetails, serviceId]
+                });
             }
 
             await tx.commit();
@@ -88,27 +84,19 @@ export default defineEventHandler(async (event) => {
             return {
                 success: true,
                 data: {
-                    id: processId,
+                    id: serviceId,
                     client_id,
-                    process_number,
-                    tribunal,
                     description,
-                    status,
                     value_charged,
-                    payment_method
-                },
+                    payment_method,
+                    status: 'Ativo'
+                }
             };
-        } catch (error) {
+        } catch (error: any) {
             await tx.rollback();
             throw error;
         }
     } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
-            throw createError({
-                statusCode: 409,
-                message: "Process with this number already exists",
-            });
-        }
         throw createError({
             statusCode: 500,
             message: error.message,

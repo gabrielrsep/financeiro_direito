@@ -12,6 +12,14 @@ export default defineEventHandler(async (event) => {
         });
     }
 
+    // Validação: Cliente recorrente deve ter data de pagamento e valor
+    if (is_recurrent && (!recurrence_day || !recurrence_value)) {
+        throw createError({
+            statusCode: 400,
+            message: "Payment date (recurrence_day) and monthly value (recurrence_value) are required for recurrent clients",
+        });
+    }
+
     try {
         const result = await db.execute({
             sql: `INSERT INTO clients (name, document, contact, address, is_recurrent, recurrence_value, recurrence_day) 

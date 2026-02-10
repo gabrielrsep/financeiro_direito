@@ -6,7 +6,8 @@ import { formatCurrency } from '~/utils/formatters'
 
 interface Props {
   isOpen: boolean
-  processId: number | null
+  processId?: number | null
+  serviceId?: number | null
   clientId?: number | undefined
   processNumber: string
   clientName: string
@@ -35,7 +36,7 @@ watch(() => props.isOpen, (isOpen) => {
 })
 
 const savePayment = async () => {
-    if (!props.processId && !props.clientId) return
+    if (!props.processId && !props.serviceId && !props.clientId) return
     if (valuePaid.value <= 0) {
         toastStore.error('O valor pago deve ser maior que zero')
         return
@@ -45,13 +46,14 @@ const savePayment = async () => {
         toastStore.error('O valor pago não pode ser maior que o saldo devedor')
         return
     }
-
+    
     try {
         await $fetch('/api/payments', {
             method: 'POST',
             body: {
                 id: props.paymentId,
                 process_id: props.processId,
+                service_id: props.serviceId,
                 client_id: props.clientId,
                 value_paid: valuePaid.value,
                 payment_date: paymentDate.value,

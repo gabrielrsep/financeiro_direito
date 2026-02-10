@@ -3,10 +3,9 @@ import { ref, computed, watch } from 'vue'
 import { ChevronLeft, ChevronRight, X, Calendar, User, Undo2, Trash2 } from 'lucide-vue-next'
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
-import { formatCurrency, formatDate } from '~/utils/formatters'
 
 useHead({
-    title: 'Lei & $ - Histórico de Pagamentos'
+    title: 'Histórico de Pagamentos'
 })
 
 interface Client {
@@ -42,7 +41,7 @@ const startDate = ref('')
 const endDate = ref('')
 const selectedClientId = ref<string>('')
 const selectedClientName = ref('')
-const status = ref('Pendente')
+const status = ref('')
 
 const isClientModalOpen = ref(false)
 const showConfirmDelete = ref(false)
@@ -67,6 +66,8 @@ const { data, refresh } = await useFetch<ApiResponse>('/api/payments/history', {
 })
 
 const payments = computed(() => data.value?.data || [])
+console.log(payments.value) // Debug: Check fetched payments;
+
 const total = computed(() => data.value?.meta?.total || 0)
 const totalPages = computed(() => data.value?.meta?.totalPages || 1)
 
@@ -215,7 +216,7 @@ const confirmDelete = async () => {
                         <tr v-for="payment in payments" :key="payment.id"
                             class="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                             <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                {{ formatDate(payment.payment_date) }}
+                                {{ formatDate(payment.created_at) }}
                             </td>
                             <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">
                                 {{ payment.client_name }}

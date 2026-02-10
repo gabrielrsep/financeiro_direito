@@ -4,7 +4,6 @@ import { Search, ChevronLeft, ChevronRight, DollarSign, Wallet, CalendarDays, Tr
 import PaymentModal from '../../components/PaymentModal.vue'
 import ConfirmModal from '../../components/ConfirmModal.vue'
 import { useToastStore } from '~/stores/toast'
-import { formatCurrency } from '~/utils/formatters'
 
 interface Process {
     id: number
@@ -27,7 +26,7 @@ interface ApiResponse {
 }
 
 useHead({
-    title: 'Lei & $ - Contas a Receber'
+    title: 'Contas a Receber'
 })
 
 const page = ref(1)

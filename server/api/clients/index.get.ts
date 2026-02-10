@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
         let sql = `
         SELECT
             c.*,
-            c.recurrence_value - SUM(p.value_paid) recurrence_paid
+            c.recurrence_value - COALESCE( SUM(p.value_paid), 0) recurrence_paid
         FROM
             clients c
         LEFT JOIN payments p ON

@@ -106,8 +106,18 @@ const closeModal = () => {
   isDialogOpen.value = false
 }
 
+const isRecurrentWithoutPaymentDay = computed(() => {
+  return currentClient.value.is_recurrent && (!currentClient.value.recurrence_day || !currentClient.value.recurrence_value)
+})
+
 const saveClient = async () => {
   try {
+    // Validation: Cliente recorrente deve ter data de pagamento e valor
+    if (currentClient.value.is_recurrent && (!currentClient.value.recurrence_day || !currentClient.value.recurrence_value)) {
+      toastStore.error('Data de pagamento e valor mensal são obrigatórios para clientes recorrentes', true)
+      return
+    }
+
     if (isEditing.value && currentClient.value.id) {
       await $fetch(`/api/clients/${currentClient.value.id}`, {
         method: 'PUT',
@@ -320,7 +330,9 @@ const confirmDeleteClient = async () => {
 
           <div v-if="currentClient.is_recurrent" class="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
              <div class="grid gap-2">
-                <label for="recurrence_value" class="text-sm font-medium leading-none text-slate-900 dark:text-white">Valor Mensal</label>
+                <label for="recurrence_value" class="font-bold text-sm leading-none text-slate-900 dark:text-white">
+                  Valor Mensal
+                </label>
                 <div class="relative">
                     <span class="absolute left-3 top-2.5 text-slate-500 dark:text-slate-400">R$</span>
                     <input id="recurrence_value" type="number" step="0.01" v-model="currentClient.recurrence_value"
@@ -328,7 +340,7 @@ const confirmDeleteClient = async () => {
                 </div>
              </div>
              <div class="grid gap-2">
-                <label for="recurrence_day" class="text-sm font-medium leading-none text-slate-900 dark:text-white">Dia de Vencimento</label>
+                <label for="recurrence_day" class="font-bold text-sm leading-none text-slate-900 dark:text-white">Dia de Vencimento</label>
                 <input id="recurrence_day" type="number" min="1" max="31" v-model="currentClient.recurrence_day"
                 class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
              </div>
@@ -340,8 +352,8 @@ const confirmDeleteClient = async () => {
             class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-slate-200 dark:border-slate-700 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white h-9 px-4 py-2">
             Cancelar
           </button>
-          <button @click="saveClient"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-100 text-slate-900 dark:text-white dark:bg-slate-600 hover:bg-slate-200 dark:hover:bg-slate-800 dark:hover:bg-slate-200 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-900/90 dark:hover:bg-slate-200 h-9 px-4 py-2">
+          <button @click="saveClient" :disabled="isRecurrentWithoutPaymentDay"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-100 text-slate-900 dark:text-white dark:bg-slate-600 hover:bg-slate-200 dark:hover:bg-slate-800 dark:hover:bg-slate-200 ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-900/90 dark:hover:bg-slate-200 disabled:bg-slate-400 dark:disabled:bg-slate-600 disabled:hover:bg-slate-400 dark:disabled:hover:bg-slate-600 h-9 px-4 py-2">
             Salvar
           </button>
         </div>

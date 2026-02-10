@@ -200,11 +200,34 @@ describe('Users API', async () => {
   })
 
   it('should prevent creating a user with duplicate username', async () => {
-    const formData = new NodeFormData()
-    formData.append('name', testUser.name)
-    formData.append('username', testUser.username) // Same username
-    formData.append('email', 'otheremail@example.com')
-    formData.append('password', testUser.password)
+    // Create the first user
+    const firstUser = {
+      name: 'First User',
+      username: 'duplicate_test_' + Date.now(),
+      email: 'duplicate_test' + Date.now() + '@example.com',
+      password: 'password123'
+    }
+    
+    let formData = new NodeFormData()
+    formData.append('name', firstUser.name)
+    formData.append('username', firstUser.username)
+    formData.append('email', firstUser.email)
+    formData.append('password', firstUser.password)
+
+    const firstResponse = await fetch('/api/users', {
+      method: 'POST',
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+    })
+    
+    expect(firstResponse.status).toBe(200)
+
+    // Try to create a second user with the same username
+    formData = new NodeFormData()
+    formData.append('name', 'Another User')
+    formData.append('username', firstUser.username) // Same username
+    formData.append('email', 'another' + Date.now() + '@example.com')
+    formData.append('password', 'password123')
 
     const response = await fetch('/api/users', {
       method: 'POST',

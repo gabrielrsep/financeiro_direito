@@ -1,14 +1,22 @@
 import { defineStore } from 'pinia'
 
+export type StorangeUser = {
+  id: string
+  name: string
+  email: string
+  avatar_url: string,
+  office_name: string
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<any>(null)
+  const user = ref<StorangeUser | null>(null)
   const needsSetup = ref<boolean>(false)
   const isAuthenticated = computed(() => !!user.value)
 
   async function fetchUser() {
     try {
       const headers = useRequestHeaders(['cookie']) as Record<string, string>
-      const data = await $fetch<{ user: any }>('/api/auth/user', { headers })
+      const data = await $fetch<{ user: StorangeUser }>('/api/auth/user', { headers })
       user.value = data.user
     } catch (error) {
       user.value = null
@@ -17,7 +25,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: { identifier: string, password: string }) {
     try {
-      const data = await $fetch<{ user: any }>('/api/auth/login', {
+      const data = await $fetch<{ user: StorangeUser }>('/api/auth/login', {
         method: 'POST',
         body: credentials,
       })

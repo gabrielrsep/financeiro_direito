@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { 
     ArrowLeft, 
     User, 
-    Phone, 
-    MapPin, 
+    Phone,
     FileText, 
     Gavel,
     DollarSign,
     CreditCard,
-    CheckCircle2,
-    Clock,
-    Calendar,
-    ExternalLink
+    ExternalLink 
 } from 'lucide-vue-next'
-import { formatCurrency } from '~/utils/formatters'
+import { getStatusClass } from '~/utils'
 
 const route = useRoute()
 const clientId = route.params.id
@@ -26,6 +22,15 @@ interface Process {
   status: string
   value_charged: number
   payment_method: string
+  created_at: string
+}
+
+interface Service {
+  id: number
+  description: string
+  value_charged: number
+  payment_method: string
+  status: string
   created_at: string
 }
 
@@ -43,7 +48,14 @@ interface ClientDetails {
   address: string
   created_at: string
   processes: Process[]
+  services: Service[]
   financial: Financial
+    // Recurrence fields (optional)
+    is_recurrent?: boolean
+    recurrence_value?: number
+    recurrence_paid?: number
+    recurrence_interval?: string
+    next_payment_date?: string
 }
 
 interface ApiResponse {
@@ -56,24 +68,9 @@ const { data: response, pending, error } = await useFetch<ApiResponse>(`/api/cli
 const client = computed(() => response.value?.data)
 
 useHead({
-    title: computed(() => `${client.value?.name || 'Cliente'} - Detalhes - Lei & $`)
+    title: computed(() => `${client.value?.name || 'Cliente'} - Detalhes`)
 })
 
-
-
-const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('pt-BR')
-}
-
-const getStatusClass = (status: string) => {
-    switch (status) {
-        case 'Concluido': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-        case 'Ativo': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-        case 'Arquivado': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-        default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-    }
-}
 </script>
 
 <template>
@@ -113,6 +110,14 @@ const getStatusClass = (status: string) => {
                             <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                                 {{ client.name }}
                             </h1>
+                            <div v-if="client.is_recurrent" class="mt-2 flex items-center gap-3">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm font-semibold">
+                                    Recorrente
+                                </span>
+                                <div class="text-sm text-slate-500 dark:text-slate-400">
+                                    Receita mensal: <span class="font-medium text-slate-900 dark:text-white">{{ formatCurrency(client.recurrence_value || 0) }}</span>
+                                </div>
+                            </div>
                             <p class="text-slate-500 dark:text-slate-400 flex items-center mt-1">
                                 <FileText class="w-3.5 h-3.5 mr-1" /> {{ client.document }}
                             </p>
@@ -224,6 +229,65 @@ const getStatusClass = (status: string) => {
                             </table>
                         </div>
                     </div>
+
+                    <!-- Services List -->
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 dark:border-slate-800">
+                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center">
+                                <FileText class="w-4 h-4 mr-2" /> Serviços do Cliente
+                            </h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+                                    <tr>
+                                        <th class="px-6 py-3">Descrição</th>
+                                        <th class="px-6 py-3">Valor</th>
+                                        <th class="px-6 py-3">Método</th>
+                                        <th class="px-6 py-3">Status</th>
+                                        <th class="px-6 py-3"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <tr v-for="service in client.services" :key="service.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                        <td class="px-6 py-4">
+                                            <div class="font-medium text-slate-900 dark:text-white">{{ service.description }}</div>
+                                            <div class="text-xs text-slate-400">{{ formatDate(service.created_at) }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 font-semibold text-slate-900 dark:text-white">
+                                            {{ formatCurrency(service.value_charged) }}
+                                        </td>
+                                        <td class="px-6 py-4 text-slate-600 dark:text-slate-300">
+                                            {{ service.payment_method === 'em_conta' ? 'Parcelado' : service.payment_method || '-' }}
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <span :class="[
+                                                'px-2.5 py-0.5 rounded-full text-xs font-semibold',
+                                                service.status === 'Ativo' 
+                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                            ]">
+                                                {{ service.status }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <NuxtLink 
+                                                :to="`/services/${service.id}`"
+                                                class="text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                            >
+                                                <ExternalLink class="w-4 h-4" />
+                                            </NuxtLink>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="client.services.length === 0">
+                                        <td colspan="5" class="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                                            Nenhum serviço vinculado a este cliente.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Sidebar (Right) -->
@@ -252,6 +316,14 @@ const getStatusClass = (status: string) => {
                                 <label class="text-xs font-medium text-slate-400 block mb-1">CPF/CNPJ</label>
                                 <div class="bg-slate-50 dark:bg-slate-800 px-3 py-2 rounded font-mono text-sm text-slate-700 dark:text-slate-300">
                                     {{ client.document }}
+                                </div>
+                            </div>
+                            <div v-if="client.is_recurrent" class="pt-4">
+                                <div class="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-lg">
+                                    <h4 class="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-2">Detalhes de Recorrência</h4>
+                                    <div class="text-sm text-slate-700 dark:text-slate-300">Valor mensal: <span class="font-medium">{{ formatCurrency(client.recurrence_value || 0) }}</span></div>
+                                    <div class="text-sm text-slate-700 dark:text-slate-300">Pago este mês: <span class="font-medium">{{ formatCurrency(client.recurrence_paid || 0) }}</span></div>
+                                    <div v-if="client.next_payment_date" class="text-sm text-slate-700 dark:text-slate-300">Próx. cobrança: <span class="font-medium">{{ formatDate(client.next_payment_date) }}</span></div>
                                 </div>
                             </div>
                         </div>

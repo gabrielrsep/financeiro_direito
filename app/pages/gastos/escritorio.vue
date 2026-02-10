@@ -4,7 +4,6 @@ import { Search, ChevronLeft, ChevronRight, Building2, Plus, Trash2, CheckCircle
 import OfficeExpenseModal from '~/components/OfficeExpenseModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
 import { useToastStore } from '~/stores/toast'
-import { formatCurrency } from '~/utils/formatters'
 
 interface OfficeExpense {
     id: number
@@ -27,7 +26,7 @@ interface ApiResponse<T> {
 }
 
 useHead({
-    title: 'Lei & $ - Gastos do Escritório'
+    title: 'Gastos do Escritório'
 })
 
 const page = ref(1)
@@ -107,11 +106,6 @@ const confirmDeleteExpense = async () => {
     }
 }
 
-
-
-const formatDate = (date: string) => {
-    return new Date(date + 'T00:00:00').toLocaleDateString('pt-BR')
-}
 </script>
 
 <template>

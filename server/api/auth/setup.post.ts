@@ -1,5 +1,6 @@
 import { db } from "../../database/connection";
 import bcrypt from "bcrypt";
+import { validCredentials } from "~~/server/util/validation/http";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -12,6 +13,8 @@ export default defineEventHandler(async (event) => {
       message: "Todos os campos são obrigatórios.",
     });
   }
+
+  validCredentials({username, email, password})
 
   // 2. Check if users already exist
   const existingUsers = await db.execute("SELECT COUNT(*) as count FROM users");

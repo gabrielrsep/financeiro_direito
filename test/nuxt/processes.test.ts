@@ -135,6 +135,27 @@ describe('Processes API', async () => {
     expect(response.data).toHaveProperty('status', updatedProcess.status)
   })
 
+  it('should NOT allow changing payment_method after creation', async () => {
+    if (!createdProcessId) throw new Error('Process not created')
+
+    try {
+      await $fetch(`/api/processes/${createdProcessId}`, {
+        method: 'PUT',
+        body: {
+          // attempt to change payment method to a different one
+          payment_method: 'parcelado',
+          client_id: createdClientId
+        }
+      })
+      throw new Error('Should have failed when changing payment_method')
+    } catch (error: any) {
+      // API should respond with 403 Forbidden
+      expect(error.response?.status).toBe(403)
+      // Optional: check message
+      expect(error.data?.statusMessage || error.response?.data?.statusMessage).toMatch(/método de pagamento/i)
+    }
+  })
+
   it('should delete a process', async () => {
      if (!createdProcessId) throw new Error('Process not created')
 

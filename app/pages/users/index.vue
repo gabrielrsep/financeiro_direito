@@ -62,6 +62,11 @@ async function handleDelete() {
 }
 
 onMounted(fetchUsers)
+
+useHead({
+  title: 'Usuários'
+})
+
 </script>
 
 <template>

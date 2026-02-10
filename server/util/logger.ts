@@ -7,8 +7,8 @@ export const devLogger = pino({
             file: 'logs/dev.log',
             singleLine: false,
             mkdir: true,
-            maxSize: '10MB',
-            maxFiles: 5,
+            maxSize: '5MB',
+            maxFiles: 3,
         }
     }
 })

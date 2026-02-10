@@ -22,7 +22,8 @@ interface Process {
     description: string
     status: string
     value_charged: number
-    payment_method?: string
+    payment_method: string
+    em_conta_details?: string
     installments?: {
         count: number
         down_payment: number
@@ -42,7 +43,7 @@ interface ApiResponse {
 }
 
 useHead({
-    title: 'Lei & $ - Processos'
+    title: 'Processos'
 })
 
 const page = ref(1)
@@ -94,10 +95,17 @@ const currentProcess = ref<Process>({
     status: 'Ativo',
     value_charged: 0,
     payment_method: '',
-    installments: {
-        count: 1,
-        down_payment: 0,
-        first_due_date: new Date().toISOString().split('T')[0] || ''
+})
+
+watch(() => currentProcess.value.payment_method, (newMethod) => {
+    if (newMethod !== 'em_conta') {
+        currentProcess.value.installments = undefined
+    } else if (!currentProcess.value.installments) {
+        currentProcess.value.installments = {
+            count: 1,
+            down_payment: 0,
+            first_due_date: new Date().toISOString().split('T')[0]!// Default to today
+        }
     }
 })
 
@@ -114,20 +122,16 @@ const openCreateModal = () => {
         status: 'Ativo',
         value_charged: 0,
         payment_method: '',
-        installments: {
-            count: 1,
-            down_payment: 0,
-            first_due_date: new Date().toISOString().split('T')[0] || ''
-        }
+        em_conta_details: ''
     }
     isDialogOpen.value = true
 }
 
 const openEditModal = (process: Process) => {
     isEditing.value = true
-    selectedClientName.value = process.client_name || ''
-    currentProcess.value = { ...process }
     isDialogOpen.value = true
+    selectedClientName.value = process.client_name || ''
+    currentProcess.value = process
 }
 
 const closeModal = () => {
@@ -136,6 +140,7 @@ const closeModal = () => {
 
 const openClientModal = () => {
     isClientModalOpen.value = true
+    selectedClientName.value = ''
 }
 
 const onClientSelected = (client: Client) => {
@@ -389,7 +394,7 @@ const confirmDeleteProcess = async () => {
                         <input id="value_charged" type="number" v-model="currentProcess.value_charged"
                             class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-50 text-slate-900 dark:text-white" />
                     </div>
-                    <div class="grid gap-2">
+                    <div v-if="!isEditing" class="grid gap-2">
                         <label for="payment_method" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">
                             Forma de Pagamento
                         </label>
@@ -404,32 +409,21 @@ const confirmDeleteProcess = async () => {
                             <option value="cartao">Cartão de Crédito</option>
                         </select>
                     </div>
-
-                    <!-- Installments Section -->
-                    <div v-if="currentProcess.payment_method === 'em_conta'" class="space-y-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="grid gap-2">
-                                <label for="down_payment" class="text-xs font-medium text-slate-500 dark:text-slate-400">Entrada (Opcional)</label>
-                                <input id="down_payment" type="number" v-model="currentProcess.installments!.down_payment"
-                                    class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
-                            </div>
-                            <div class="grid gap-2">
-                                <label for="installments_count" class="text-xs font-medium text-slate-500 dark:text-slate-400">Nº de Parcelas</label>
-                                <input id="installments_count" type="number" v-model="currentProcess.installments!.count" min="1"
-                                    class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
-                            </div>
-                        </div>
-                        <div class="grid gap-2">
-                            <label for="first_due_date" class="text-xs font-medium text-slate-500 dark:text-slate-400">Vencimento da 1ª Parcela</label>
-                            <input id="first_due_date" type="date" v-model="currentProcess.installments!.first_due_date"
-                                class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
-                        </div>
-                        <div class="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-2">
-                            <p v-if="currentProcess.installments!.count > 0">
-                                Valor por parcela: <span class="font-bold text-slate-900 dark:text-white">{{ formatCurrency((currentProcess.value_charged - (currentProcess.installments!.down_payment || 0)) / currentProcess.installments!.count) }}</span>
+                    <div v-else class="grid gap-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">
+                            Forma de Pagamento
+                        </label>
+                        <div class="p-3 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                            <p class="text-sm text-slate-900 dark:text-white font-medium">
+                                {{ formatPaymentMethod(currentProcess.payment_method) }}
                             </p>
                         </div>
                     </div>
+
+                    <span v-if="currentProcess.payment_method === 'em_conta' && currentProcess.em_conta_details" class="block mt-2 text-sm text-slate-700 dark:text-slate-300 font-bold">
+                        {{ formatPaymentDetails(currentProcess.em_conta_details) }}
+                    </span>
+
                     <div class="grid gap-2">
                         <label for="description"
                             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">Descrição</label>

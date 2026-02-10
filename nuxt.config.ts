@@ -16,6 +16,12 @@ export default defineNuxtConfig({
     classSuffix: ''
   },
   nitro: {
-    ignore: NODE_ENV === "development" ? [] : ["**/api/dev/*"]
+    ignore: NODE_ENV === "development" ? [] : ["/api/dev/**"]
+  },
+  app: {
+    head: {
+      title: 'Lei & $',
+      titleTemplate: '%s | Lei & $',
+    }
   }
 })

@@ -2,12 +2,12 @@ import { databaseArgs, db } from "~~/server/database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
-    const { id, process_id, client_id, value_paid, payment_date, status } = body;
+    const { id, process_id, service_id, client_id, value_paid, payment_date, status } = body;
 
-    if ((!process_id && !client_id) || value_paid === undefined) {
+    if ((!process_id && !service_id && !client_id) || value_paid === undefined) {
         throw createError({
             statusCode: 400,
-            message: "Process ID or Client ID, and Value Paid are required",
+            message: "Process ID, Service ID or Client ID, and Value Paid are required",
         });
     }
 
@@ -17,14 +17,14 @@ export default defineEventHandler(async (event) => {
         if (id) {
             // Update existing payment
              await db.execute({
-                sql: `UPDATE payments SET value_paid = ?, payment_date = ?, status = ? WHERE id = ?`,
-                args: [value_paid, payment_date, status || 'Pago', id]
+                sql: `UPDATE payments SET process_id = ?, service_id = ?, value_paid = ?, payment_date = ?, status = ? WHERE id = ?`,
+                args: [process_id, service_id, value_paid, payment_date, status || 'Pago', id]
             })
             lastId = id;
         } else {
              const result = await db.execute({
-                sql: `INSERT INTO payments (process_id, client_id, value_paid, payment_date, status) VALUES (?, ?, ?, ?, ?) RETURNING id`,
-                args: databaseArgs(process_id, client_id, value_paid, payment_date, status || 'Pago')
+                sql: `INSERT INTO payments (process_id, service_id, client_id, value_paid, payment_date, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+                args: databaseArgs(process_id, service_id, client_id, value_paid, payment_date, status || 'Pago')
             })
             const row = result.rows[0];
             lastId = Number(row.id);
@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
             data: {
                 id: lastId,
                 process_id,
+                service_id,
                 client_id,
                 value_paid,
                 payment_date,

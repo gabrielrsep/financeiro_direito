@@ -20,16 +20,19 @@ interface Stats {
   kpis: {
     totalReceivable: number
     activeProcesses: number
+    activeServices: number
+    servicesReceivable: number
     monthlyRevenue: number
     recurrentRevenue: number
     pendingExpenses: number
   }
   recentProcesses: any[]
+  recentServices: any[]
   recentPayments: any[]
 }
 
 useHead({
-  title: 'Lei & $ - Dashboard'
+  title: 'Dashboard'
 })
 
 const { data: stats, pending } = useFetch<Stats>('/api/dashboard/stats')
@@ -42,12 +45,6 @@ const { data: scheduledData } = useFetch<any>('/api/gastos/scheduled', {
 
 
 const scheduledPayments = computed(() => scheduledData.value?.data || [])
-
-
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('pt-BR')
-}
 
 const kpis = computed(() => [
   {
@@ -63,6 +60,13 @@ const kpis = computed(() => [
     description: 'Em andamento no momento',
     icon: FileText,
     color: 'text-blue-600'
+  },
+  {
+    title: 'Serviços Ativos',
+    value: stats.value?.kpis.activeServices || 0,
+    description: 'Serviços em prestação',
+    icon: FileText,
+    color: 'text-purple-600'
   },
   {
     title: 'Receita Mensal',
@@ -117,9 +121,9 @@ const kpis = computed(() => [
       </div>
     </div>
 
-    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-6">
       <!-- Recent Processes -->
-      <div class="col-span-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
+      <div class="col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
         <div class="p-6 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 transition-colors">
           <div class="flex items-center justify-between">
             <div>
@@ -153,8 +157,43 @@ const kpis = computed(() => [
         </div>
       </div>
 
+      <!-- Recent Services -->
+      <div class="col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
+        <div class="p-6 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 transition-colors">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-slate-900 dark:text-white">Serviços Recentes</h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400">Últimos serviços registrados.</p>
+            </div>
+            <NuxtLink to="/services" class="text-xs font-medium text-purple-600 dark:text-purple-400 hover:underline">Ver todos</NuxtLink>
+          </div>
+        </div>
+        <div class="p-0">
+          <div v-if="pending" class="p-6 space-y-4">
+            <div v-for="i in 5" :key="i" class="h-10 animate-pulse rounded bg-slate-50"></div>
+          </div>
+          <div v-else-if="stats?.recentServices.length === 0" class="p-10 text-center">
+            <p class="text-slate-500 dark:text-slate-400">Nenhum serviço encontrado.</p>
+          </div>
+          <div v-else class="divide-y divide-slate-100 dark:divide-slate-800">
+            <div v-for="service in stats?.recentServices" :key="service.id" class="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              <div class="flex items-center justify-between">
+                <div class="flex flex-col">
+                  <span class="font-medium text-slate-900 dark:text-white text-sm line-clamp-1">{{ service.description }}</span>
+                  <span class="text-sm text-slate-500 dark:text-slate-400">{{ service.client_name }}</span>
+                </div>
+                <div class="flex flex-col items-end">
+                  <span class="text-xs font-medium px-2 py-1 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 transition-colors">{{ service.status }}</span>
+                  <span class="text-xs text-slate-400 dark:text-slate-500 mt-1 transition-colors">{{ formatDate(service.created_at) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Payments -->
-      <div class="col-span-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
+      <div class="col-span-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
         <div class="p-6 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 transition-colors">
           <div class="flex items-center justify-between">
             <div>

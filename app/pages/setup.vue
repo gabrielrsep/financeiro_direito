@@ -5,6 +5,10 @@ definePageMeta({
   layout: false
 })
 
+useHead({
+  title: 'Primeiro Acesso'
+})
+
 const authStore = useAuthStore()
 const loading = ref(false)
 const errorMessage = ref('')

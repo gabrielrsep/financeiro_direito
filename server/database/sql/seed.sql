@@ -8,42 +8,42 @@ INSERT INTO offices (name) VALUES ('Escritório Principal');
 INSERT INTO users (office_id, username, email, password, name) VALUES
 (1, 'admin', 'admin@escritorio.com.br', '$2a$12$qeKHhtjtUQ7Tx7kbqwKnAOzFsrHwgkBh/Hi0is5q8LbNig0WRK1UC', 'Administrador');
 
--- Insert Clients
-INSERT INTO clients (name, document, contact, address) VALUES
-('Empresa A Ltda', '12.345.678/0001-90', 'contato@empresaa.com.br', 'Av. Paulista, 1000 - São Paulo, SP'),
-('João da Silva', '123.456.789-00', '(11) 99999-8888', 'Rua das Flores, 123 - São Paulo, SP'),
-('Maria Oliveira', '987.654.321-11', '(21) 98888-7777', 'Av. Atlântica, 500 - Rio de Janeiro, RJ'),
-('Comércio B S.A.', '98.765.432/0001-11', 'financeiro@comerciob.com.br', 'Rua XV de Novembro, 200 - Curitiba, PR'),
-('Pedro Souza', '555.444.333-22', '(31) 97777-6666', 'Rua da Bahia, 300 - Belo Horizonte, MG'),
-('Ana Costa', '222.333.444-55', 'ana.costa@email.com', 'Rua das Palmeiras, 45 - Florianópolis, SC'),
-('Global Tech Soluções', '11.222.333/0001-44', 'admin@globaltech.com', 'Av. das Nações Unidas, 1234 - São Paulo, SP'),
-('Carlos Eduardo', '999.888.777-66', '(11) 91234-5678', 'Rua Augusta, 1500 - São Paulo, SP'),
-('Restaurante Sabor Único', '55.666.777/0001-88', 'saborunico@restaurante.com', 'Rua Gastronômica, 88 - Porto Alegre, RS'),
-('Beatriz Santos', '111.999.222-33', '(41) 98765-4321', 'Rua das Artes, 202 - Curitiba, PR');
+-- Insert Clients (with recurrence data where applicable)
+INSERT INTO clients (name, document, contact, address, is_recurrent, recurrence_value, recurrence_day) VALUES
+('Empresa A Ltda', '12.345.678/0001-90', 'contato@empresaa.com.br', 'Av. Paulista, 1000 - São Paulo, SP', 1, 1000.00, 10),
+('João da Silva', '123.456.789-00', '(11) 99999-8888', 'Rua das Flores, 123 - São Paulo, SP', 0, NULL, NULL),
+('Maria Oliveira', '987.654.321-11', '(21) 98888-7777', 'Av. Atlântica, 500 - Rio de Janeiro, RJ', 0, NULL, NULL),
+('Comércio B S.A.', '98.765.432/0001-11', 'financeiro@comerciob.com.br', 'Rua XV de Novembro, 200 - Curitiba, PR', 1, 5000.00, 5),
+('Pedro Souza', '555.444.333-22', '(31) 97777-6666', 'Rua da Bahia, 300 - Belo Horizonte, MG', 0, NULL, NULL),
+('Ana Costa', '222.333.444-55', 'ana.costa@email.com', 'Rua das Palmeiras, 45 - Florianópolis, SC', 1, 1200.00, 1),
+('Global Tech Soluções', '11.222.333/0001-44', 'admin@globaltech.com', 'Av. das Nações Unidas, 1234 - São Paulo, SP', 0, NULL, NULL),
+('Carlos Eduardo', '999.888.777-66', '(11) 91234-5678', 'Rua Augusta, 1500 - São Paulo, SP', 0, NULL, NULL),
+('Restaurante Sabor Único', '55.666.777/0001-88', 'saborunico@restaurante.com', 'Rua Gastronômica, 88 - Porto Alegre, RS', 1, 2000.00, 15),
+('Beatriz Santos', '111.999.222-33', '(41) 98765-4321', 'Rua das Artes, 202 - Curitiba, PR', 0, NULL, NULL);
 
--- Insert Processes
--- IDs 1-10 for clients above
-INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, target) VALUES
-(1, '0001234-56.2023.8.26.0100', 'TJSP', 'Ação de Cobrança Indevida', 'Ativo', 15000.00, 'em_conta', 'Empresa B Ltda'),
-(1, '0005678-12.2024.8.26.0100', 'TJSP', 'Revisão Contratual', 'Ativo', 8000.00, 'Pix', 'Empresa C Ltda'),
-(2, '1010101-99.2023.8.26.0000', 'TRF3', 'Aposentadoria Especial', 'Em Andamento', 5000.00, 'À Vista', 'Empresa D Ltda'),
-(2, '2020202-88.2022.8.26.0000', 'TJSP', 'Inventário', 'Concluido', 12000.00, 'Crédito', 'Empresa E Ltda'),
-(3, '3030303-77.2024.8.19.0001', 'TJRJ', 'Divórcio Consensual', 'Ativo', 4500.00, 'Débito', 'Empresa F Ltda'),
-(4, '4040404-66.2023.8.16.0001', 'TJPR', 'Recuperação Judicial', 'Ativo', 50000.00, 'em_conta', 'Empresa G Ltda'),
-(4, '5050505-55.2024.8.16.0001', 'TRT9', 'Reclamação Trabalhista', 'Arquivado', 2500.00, 'Pix', 'Empresa H Ltda'),
-(5, '6060606-44.2024.8.13.0002', 'TJMG', 'Danos Morais', 'Ativo', 6000.00, 'em_conta', 'Empresa I Ltda'),
-(1, '7070707-33.2023.8.26.0100', 'TJSP', 'Execução Fiscal', 'Suspenso', 20000.00, 'Credito', 'Empresa J Ltda'),
-(3, '8080808-22.2024.8.19.0002', 'TJRJ', 'Alimentos', 'Ativo', 3000.00, 'Pix', 'Empresa K Ltda'),
-(6, '9090909-11.2024.8.24.0001', 'TJSC', 'Danos Materiais', 'Ativo', 7500.00, 'em_conta', 'Empresa L Ltda'),
-(7, '1112223-44.2023.8.26.0100', 'TJSP', 'Propriedade Intelectual', 'Ativo', 30000.00, 'em_conta', 'Empresa M Ltda'),
-(8, '2223334-55.2024.8.26.0100', 'TRF1', 'Mandado de Segurança', 'Em Andamento', 12000.00, 'Pix', 'Empresa N Ltda'),
-(9, '3334445-66.2022.8.16.0001', 'TRT2', 'Acordo Extrajudicial', 'Concluido', 5000.00, 'À Vista', 'Empresa O Ltda'),
-(10, '4445556-77.2024.8.19.0001', 'TJRJ', 'Indenização', 'Ativo', 8500.00, 'Crédito', 'Empresa P Ltda'),
-(7, '5556667-88.2024.8.26.0000', 'TRF3', 'Tributário', 'Suspenso', 45000.00, 'em_conta', 'Empresa Q Ltda'),
-(6, '6667778-99.2023.8.26.0100', 'TJSP', 'Usucapião', 'Ativo', 18000.00, 'em_conta', 'Empresa R Ltda'),
-(8, '7778889-10.2024.8.13.0002', 'TJMG', 'Cobrança', 'Ativo', 9000.00, 'Pix', 'Empresa S Ltda'),
-(4, '8889990-21.2023.8.16.0001', 'TJPR', 'Dissolução de Sociedade', 'Ativo', 25000.00, 'em_conta', 'Empresa T Ltda'),
-(2, '9990001-32.2024.8.19.0001', 'TJRJ', 'Guarda de Menor', 'Ativo', 4000.00, 'Débito', 'Empresa U Ltda');
+-- Insert Processes (including em_conta_details for 'em_conta' payment_method)
+-- IDs 1-20 for clients above
+INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, em_conta_details, target) VALUES
+(1, '0001234-56.2023.8.26.0100', 'TJSP', 'Ação de Cobrança Indevida', 'Ativo', 15000.00, 'em_conta', '1000+3x500', 'Empresa B Ltda'),
+(1, '0005678-12.2024.8.26.0100', 'TJSP', 'Revisão Contratual', 'Ativo', 8000.00, 'Pix', NULL, 'Empresa C Ltda'),
+(2, '1010101-99.2023.8.26.0000', 'TRF3', 'Aposentadoria Especial', 'Em Andamento', 5000.00, 'À Vista', NULL, 'Empresa D Ltda'),
+(2, '2020202-88.2022.8.26.0000', 'TJSP', 'Inventário', 'Concluido', 12000.00, 'Crédito', NULL, 'Empresa E Ltda'),
+(3, '3030303-77.2024.8.19.0001', 'TJRJ', 'Divórcio Consensual', 'Ativo', 4500.00, 'Débito', NULL, 'Empresa F Ltda'),
+(4, '4040404-66.2023.8.16.0001', 'TJPR', 'Recuperação Judicial', 'Ativo', 50000.00, 'em_conta', '10000+4x10000', 'Empresa G Ltda'),
+(4, '5050505-55.2024.8.16.0001', 'TRT9', 'Reclamação Trabalhista', 'Arquivado', 2500.00, 'Pix', NULL, 'Empresa H Ltda'),
+(5, '6060606-44.2024.8.13.0002', 'TJMG', 'Danos Morais', 'Ativo', 6000.00, 'em_conta', '2000+4x1000', 'Empresa I Ltda'),
+(1, '7070707-33.2023.8.26.0100', 'TJSP', 'Execução Fiscal', 'Suspenso', 20000.00, 'Credito', NULL, 'Empresa J Ltda'),
+(3, '8080808-22.2024.8.19.0002', 'TJRJ', 'Alimentos', 'Ativo', 3000.00, 'Pix', NULL, 'Empresa K Ltda'),
+(6, '9090909-11.2024.8.24.0001', 'TJSC', 'Danos Materiais', 'Ativo', 7500.00, 'em_conta', '2500+2x2500', 'Empresa L Ltda'),
+(7, '1112223-44.2023.8.26.0100', 'TJSP', 'Propriedade Intelectual', 'Ativo', 30000.00, 'em_conta', '10000+2x10000', 'Empresa M Ltda'),
+(8, '2223334-55.2024.8.26.0100', 'TRF1', 'Mandado de Segurança', 'Em Andamento', 12000.00, 'Pix', NULL, 'Empresa N Ltda'),
+(9, '3334445-66.2022.8.16.0001', 'TRT2', 'Acordo Extrajudicial', 'Concluido', 5000.00, 'À Vista', NULL, 'Empresa O Ltda'),
+(10, '4445556-77.2024.8.19.0001', 'TJRJ', 'Indenização', 'Ativo', 8500.00, 'Crédito', NULL, 'Empresa P Ltda'),
+(7, '5556667-88.2024.8.26.0000', 'TRF3', 'Tributário', 'Suspenso', 45000.00, 'em_conta', '15000+3x10000', 'Empresa Q Ltda'),
+(6, '6667778-99.2023.8.26.0100', 'TJSP', 'Usucapião', 'Ativo', 18000.00, 'em_conta', '6000+2x6000', 'Empresa R Ltda'),
+(8, '7778889-10.2024.8.13.0002', 'TJMG', 'Cobrança', 'Ativo', 9000.00, 'Pix', NULL, 'Empresa S Ltda'),
+(4, '8889990-21.2023.8.16.0001', 'TJPR', 'Dissolução de Sociedade', 'Ativo', 25000.00, 'em_conta', '5000+4x5000', 'Empresa T Ltda'),
+(2, '9990001-32.2024.8.19.0001', 'TJRJ', 'Guarda de Menor', 'Ativo', 4000.00, 'Débito', NULL, 'Empresa U Ltda');
 
 -- Insert Payments
 -- Linking to processes created above (IDs 1-20 assumed)

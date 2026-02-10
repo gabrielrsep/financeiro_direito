@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { 
     ArrowLeft, 
     Gavel, 
     User, 
-    Phone, 
-    Mail, 
+    Phone,
     MapPin, 
     FileText, 
     CreditCard, 
@@ -15,7 +14,8 @@ import {
     DollarSign,
     Target
 } from 'lucide-vue-next'
-import { formatCurrency } from '~/utils/formatters'
+import { getStatusClass } from '~/utils'
+
 
 const route = useRoute()
 const processId = route.params.id
@@ -58,7 +58,7 @@ const { data: response, pending, error } = await useFetch<ApiResponse>(`/api/pro
 const process = computed(() => response.value?.data)
 
 useHead({
-    title: computed(() => `Processo ${process.value?.process_number || ''} - Lei & $`)
+    title: computed(() => `Processo ${process.value?.process_number || ''}`)
 })
 
 const totalPaid = computed(() => {
@@ -66,13 +66,6 @@ const totalPaid = computed(() => {
     return process.value.payments
         .filter(p => p.status === 'Pago')
         .reduce((acc, p) => acc + p.value_paid, 0)
-})
-
-const totalPending = computed(() => {
-    if (!process.value?.payments) return 0
-    return process.value.payments
-        .filter(p => p.status === 'Pendente')
-        .reduce((acc, p) => acc + p.value_paid, 0) // value_paid here actually represents the value to be paid
 })
 
 const balance = computed(() => {
@@ -86,20 +79,6 @@ const paymentProgress = computed(() => {
 })
 
 
-
-const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-'
-    return new Date(dateString).toLocaleDateString('pt-BR')
-}
-
-const getStatusClass = (status: string) => {
-    switch (status) {
-        case 'Concluido': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-        case 'Ativo': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-        case 'Arquivado': return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-        default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-    }
-}
 </script>
 
 <template>

@@ -33,6 +33,19 @@ export default defineEventHandler(async () => {
     const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo'");
     const activeProcesses = getFirstRow<Result>(activeProcessesResult);
 
+    // Get service metrics
+    const activeServicesResult = await db.execute("SELECT COUNT(*) as total FROM services WHERE status = 'Ativo' AND deleted_at IS NULL");
+    const activeServices = getFirstRow<Result>(activeServicesResult);
+
+    const servicesReceivableResult = await db.execute(`
+      SELECT SUM(s.value_charged - COALESCE((
+        SELECT SUM(p.value_paid) FROM payments p WHERE p.service_id = s.id AND p.status = 'Pago'
+      ), 0)) as total
+      FROM services s
+      WHERE s.deleted_at IS NULL AND s.status = 'Ativo'
+    `);
+    const servicesReceivable = getFirstRow<Result>(servicesReceivableResult);
+
     // Monthly revenue: sum of payments in the current month
     const monthlyRevenueResult = await db.execute(monthlyRevenueSQL);
     const monthlyRevenue = getFirstRow<Result>(monthlyRevenueResult)
@@ -57,6 +70,15 @@ export default defineEventHandler(async () => {
     `);
     const recentProcesses = recentProcessesResult.rows;
     
+    // Recent services
+    const recentServicesResult = await db.execute(`
+      SELECT s.*, c.name as client_name 
+      FROM services s 
+      JOIN clients c ON s.client_id = c.id 
+      ORDER BY s.created_at DESC 
+      LIMIT 5
+    `);
+    const recentServices = recentServicesResult.rows;
 
     // Recent payments
     const recentPaymentsResult = await db.execute(`
@@ -73,11 +95,14 @@ export default defineEventHandler(async () => {
       kpis: {
         totalReceivable: totalReceivable,
         activeProcesses: activeProcesses.total || 0,
+        activeServices: activeServices.total || 0,
+        servicesReceivable: Number((servicesReceivable as any)?.total || 0),
         monthlyRevenue: Number((monthlyRevenue as any)?.total || 0),
         recurrentRevenue: Number((paidRecurrent as any)?.total || 0),
         pendingExpenses: Number((pendingExpenses as any)?.total || 0),
       },
       recentProcesses,
+      recentServices,
       recentPayments
     };
   } catch (error: any) {

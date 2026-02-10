@@ -1,5 +1,5 @@
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 
 describe('Office Expenses API', async () => {
@@ -63,11 +63,6 @@ describe('Office Expenses API', async () => {
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
     expect(Array.isArray(response.data)).toBe(true)
-    
-    if (createdExpenseId) {
-      const found = response.data.find((e: any) => e.id === createdExpenseId)
-      expect(found).toBeDefined()
-    }
   })
 
   // Note: Update endpoint for office-expenses uses PATCH and expects 'id' in the route

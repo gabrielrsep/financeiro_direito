@@ -36,24 +36,9 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Busca os pagamentos do processo
-    const paymentsResult = await db.execute({
-      sql: `
-        SELECT *
-        FROM payments
-        WHERE process_id = ?
-        ORDER BY due_date ASC, created_at ASC
-      `,
-      args: [id]
-    });
-    const payments = paymentsResult.rows;
-
     return {
       success: true,
-      data: {
-        ...process,
-        payments
-      }
+      data: process,
     }
   } catch (error: any) {
     throw createError({

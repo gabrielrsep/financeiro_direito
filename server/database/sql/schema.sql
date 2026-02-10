@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS processes (
     status TEXT DEFAULT 'Ativo', -- Ativo, Arquivado, Concluido
     value_charged REAL DEFAULT 0,
     payment_method TEXT,
+    em_conta_details TEXT, -- ex: 1000+3x500
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
@@ -76,10 +77,26 @@ CREATE TABLE IF NOT EXISTS office_expenses (
     deleted_at DATETIME
 );
 
+-- Services Table
+CREATE TABLE IF NOT EXISTS services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    description TEXT NOT NULL,
+    value_charged REAL NOT NULL DEFAULT 0,
+    payment_method TEXT,
+    em_conta_details TEXT,
+    status TEXT DEFAULT 'Ativo', -- Ativo, Concluído
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME,
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+);
+
 -- Payments Table
 CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     process_id INTEGER,
+    service_id INTEGER,
     client_id INTEGER,
     value_paid REAL NOT NULL,
     payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -88,6 +105,7 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (process_id) REFERENCES processes(id) ON DELETE CASCADE,
+    FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
 
@@ -115,6 +133,12 @@ BEGIN
     UPDATE office_expenses SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
 
+-- Trigger to update updated_at on services
+CREATE TRIGGER IF NOT EXISTS idx_services_updated_at AFTER UPDATE ON services
+BEGIN
+    UPDATE services SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
+
 -- Indexes for performance
 
 -- Clients
@@ -130,11 +154,18 @@ CREATE INDEX IF NOT EXISTS idx_processes_payment_method ON processes(payment_met
 
 -- Payments
 CREATE INDEX IF NOT EXISTS idx_payments_process_id ON payments(process_id);
+CREATE INDEX IF NOT EXISTS idx_payments_service_id ON payments(service_id);
 CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
 CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 CREATE INDEX IF NOT EXISTS idx_payments_due_date ON payments(due_date);
 CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
 CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
+
+-- Services
+CREATE INDEX IF NOT EXISTS idx_services_client_id ON services(client_id);
+CREATE INDEX IF NOT EXISTS idx_services_status ON services(status);
+CREATE INDEX IF NOT EXISTS idx_services_deleted_at ON services(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_services_created_at ON services(created_at);
 
 -- Office Expenses
 CREATE INDEX IF NOT EXISTS idx_office_expenses_deleted_at ON office_expenses(deleted_at);

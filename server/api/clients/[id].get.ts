@@ -35,29 +35,53 @@ export default defineEventHandler(async (event) => {
         });
         const processes = processesResult.rows;
 
+        // Get services for this client
+        const servicesResult = await db.execute({
+            sql: `
+                SELECT * FROM services 
+                WHERE client_id = ? AND deleted_at IS NULL 
+                ORDER BY created_at DESC
+            `,
+            args: [id]
+        });
+        const services = servicesResult.rows;
+
         // Get financial summary
-        // 1. Total Charged (from processes)
+        // 1. Total Charged (from processes + services)
         const financialResult = await db.execute({
             sql: `
                 SELECT 
                     COALESCE(SUM(value_charged), 0) as total_charged
-                FROM processes 
-                WHERE client_id = ? AND deleted_at IS NULL
+                FROM (
+                    SELECT value_charged FROM processes WHERE client_id = ? AND deleted_at IS NULL
+                    UNION ALL
+                    SELECT value_charged FROM services WHERE client_id = ? AND deleted_at IS NULL
+                )
             `,
-            args: [id]
+            args: [id, id]
         });
         const total_charged = Number((financialResult.rows[0] as any).total_charged);
 
-        // 2. Total Paid (from payments linked to these processes)
+        // 2. Total Paid (from payments linked to processes and services)
         const paymentsResult = await db.execute({
             sql: `
                 SELECT 
-                    COALESCE(SUM(pnt.value_paid), 0) as total_paid
-                FROM payments pnt
-                JOIN processes p ON pnt.process_id = p.id
-                WHERE p.client_id = ? AND p.deleted_at IS NULL AND pnt.status = 'Pago'
+                    COALESCE(SUM(value_paid), 0) as total_paid
+                FROM payments
+                WHERE (
+                    (process_id IS NOT NULL AND process_id IN (
+                        SELECT id FROM processes WHERE client_id = ? AND deleted_at IS NULL
+                    ))
+                    OR
+                    (service_id IS NOT NULL AND service_id IN (
+                        SELECT id FROM services WHERE client_id = ? AND deleted_at IS NULL
+                    ))
+                    OR
+                    (client_id = ? AND process_id IS NULL AND service_id IS NULL)
+                )
+                AND status = 'Pago'
             `,
-            args: [id]
+            args: [id, id, id]
         });
         const total_paid = Number((paymentsResult.rows[0] as any).total_paid);
 
@@ -68,6 +92,7 @@ export default defineEventHandler(async (event) => {
             data: {
                 ...client,
                 processes,
+                services,
                 financial: {
                     total_charged,
                     total_paid,

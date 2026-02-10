@@ -1,98 +1,73 @@
-import { db, databaseArgs } from "../../database/connection";
-import pino from "pino";
-
-const logger = pino({
-    transport: {
-        target: 'pino-roll',
-        options: {
-            file: 'logs/error.log',
-            frequency: 'daily',
-            maxSize: '10MB',
-            maxFiles: 7,
-        },
-    },
-});
+import { db } from "~~/server/database/connection";
 
 export default defineEventHandler(async (event) => {
-    const id = event.context.params?.id;
-    const body = await readBody(event);
-    const { client_id, process_number, tribunal, target, description, status, value_charged, payment_method, add_to_client_account } = body;
-
+    const id = getRouterParam(event, "id")
+    const body = await readBody(event)
+    const { payment_method: newPaymentMethod, ...updateData } = body
 
     if (!id) {
         throw createError({
             statusCode: 400,
-            message: "ID is required",
-        });
+            statusMessage: "ID do processo é obrigatório",
+        })
     }
 
     try {
-        const tx = await db.transaction("write");
-        try {
-            const checkResult = await tx.execute({
-                sql: "SELECT id FROM processes WHERE id = ?",
-                args: [id]
-            });
+        // Buscar método de pagamento atual
+        const processResult = await db.execute({
+            sql: "SELECT payment_method FROM processes WHERE id = ?",
+            args: [id],
+        })
 
-            if (checkResult.rows.length === 0) {
-                throw createError({
-                    statusCode: 404,
-                    message: "Process not found",
-                });
-            }
-
-            await tx.execute({
-                sql: `
-                    UPDATE processes 
-                    SET client_id = ?, 
-                        process_number = ?, 
-                        tribunal = ?, 
-                        target = ?,
-                        description = ?, 
-                        status = ?, 
-                        value_charged = ?,
-                        payment_method = ?
-                    WHERE id = ?
-                `,
-                args: databaseArgs(client_id, process_number, tribunal, target, description, status, value_charged, payment_method, id)
-            });
-
-            // Balance adjustment logic removed
-
-
-            await tx.commit();
-
-            return {
-                success: true,
-                data: {
-                    id,
-                    client_id,
-                    process_number,
-                    tribunal,
-                    target,
-                    description,
-                    status,
-                    value_charged,
-                    payment_method,
-                    add_to_client_account
-                },
-            };
-        } catch (error) {
-            await tx.rollback();
-            throw error;
-        }
-    } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
+        if (!processResult.rows.length) {
             throw createError({
-                statusCode: 409,
-                message: "Process with this number already exists",
-            });
+                statusCode: 404,
+                statusMessage: "Processo não encontrado",
+            })
         }
-        if (error.statusCode === 404) throw error;
-        logger.error(error.message);
-        throw createError({
-            statusCode: 500,
-            message: "Internal Server Error",
-        });
+
+        const currentPaymentMethod = processResult.rows[0].payment_method
+
+        // Validar trocar método de pagamento
+        if (newPaymentMethod && newPaymentMethod !== currentPaymentMethod) {
+            throw createError({
+                statusCode: 403,
+                statusMessage: "Não é permitido alterar o método de pagamento após a criação do processo. Para mudanças, exclua e recrie o processo.",
+                data: {
+                    currentPaymentMethod,
+                    attemptedPaymentMethod: newPaymentMethod
+                }
+            })
+        }
+
+        // Atualizar processo (sem alterar payment_method)
+        const setClause = Object.keys(updateData)
+            .filter(key => key !== 'payment_method' && key !== 'id')
+            .map(key => `${key} = ?`)
+            .join(', ')
+
+        const values = Object.keys(updateData)
+            .filter(key => key !== 'payment_method' && key !== 'id')
+            .map(key => updateData[key])
+
+        if (setClause) {
+            await db.execute({
+                sql: `UPDATE processes SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+                args: [...values, id],
+            })
+        }
+
+        // Buscar processo atualizado para retorno
+        const updatedResult = await db.execute({
+            sql: `SELECT p.*, c.name as client_name FROM processes p LEFT JOIN clients c ON p.client_id = c.id WHERE p.id = ?`,
+            args: [id],
+        })
+
+        const updatedProcess = updatedResult.rows[0] || null
+
+        return { success: true, message: "Processo atualizado com sucesso", data: updatedProcess }
+    } catch (error) {
+        console.error("Erro ao atualizar processo:", error)
+        throw error
     }
-});
+})
