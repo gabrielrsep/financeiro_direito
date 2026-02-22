@@ -33,7 +33,7 @@ Diretrizes de UI/UX (Design):
 
     Sempre que possível, use componentes reutilizáveis.
 
-    sempre me pergunte se deve utilizar um select ou criar um modal com opções de busca e paginação para selecionar um item.
+    Sempre que for necessário a criação de um select, me pergunte se deve utilizar um select ou criar um modal com opções de busca e paginação para selecionar um item.
 
 Instruções Técnicas:
 

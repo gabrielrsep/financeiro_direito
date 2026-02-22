@@ -1,4 +1,5 @@
 import { db } from "../../database/connection";
+import { isFullyPaid } from "../../util/payment";
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
@@ -66,7 +67,10 @@ export default defineEventHandler(async (event) => {
             sql,
             args: [...params, limit, offset]
         });
-        const services = dataResult.rows;
+        const services = dataResult.rows.map((service: any) => ({
+            ...service,
+            is_fully_paid: isFullyPaid(Number(service.value_charged), Number(service.total_paid))
+        }));
 
         const totalPages = Math.ceil(total / limit);
 

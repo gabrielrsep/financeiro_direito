@@ -10,6 +10,7 @@ describe('Payments API', async () => {
   let createdClientId: number | null = null
   let createdProcessId: number | null = null
   let createdPaymentId: number | null = null
+  let createdFinalPaymentId: number | null = null
 
   const timestamp = Date.now()
   const testClient = {
@@ -71,6 +72,25 @@ describe('Payments API', async () => {
     createdPaymentId = response.data.id
   })
 
+  it('should mark process as paid when fully paid', async () => {
+    if (!createdProcessId) throw new Error('Process not created')
+
+    const response = await $fetch<any>('/api/payments', {
+      method: 'POST',
+      body: {
+        process_id: createdProcessId,
+        value_paid: 900,
+        payment_date: new Date().toISOString(),
+        status: 'Pago'
+      }
+    })
+
+    createdFinalPaymentId = response.data.id
+
+    const processDetails = await $fetch<any>(`/api/processes/${createdProcessId}`)
+    expect(processDetails.data.is_fully_paid).toBe(true)
+  })
+
   it('should create a payment directly for a client', async () => {
     if (!createdClientId) throw new Error('Client not created')
 
@@ -115,19 +135,24 @@ describe('Payments API', async () => {
   })
 
   it('should delete a payment', async () => {
-     if (!createdPaymentId) throw new Error('Payment not created')
+      if (!createdFinalPaymentId) throw new Error('Payment not created')
 
      // Note: Payments API uses DELETE method with body, or query param?
      // Based on previous analysis, it uses body with { id }.
      // Some HTTP clients/servers strictly forbid body in DELETE.
      // Nuxt $fetch supports it if using 'body' prop.
 
-     const response = await $fetch<any>('/api/payments', {
+      const response = await $fetch<any>('/api/payments', {
         method: 'DELETE',
-        body: { id: createdPaymentId }
+        body: { id: createdFinalPaymentId }
      })
 
      expect(response).toHaveProperty('success', true)
+
+      if (createdProcessId) {
+       const processDetails = await $fetch<any>(`/api/processes/${createdProcessId}`)
+       expect(processDetails.data.is_fully_paid).toBe(false)
+      }
   })
 
   it('should list payments history', async () => {

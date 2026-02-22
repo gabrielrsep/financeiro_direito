@@ -1,6 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
 const { NODE_ENV } = process.env
+const isTest = NODE_ENV === 'test' || process.env.VITEST === 'true'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -8,10 +9,10 @@ export default defineNuxtConfig({
   sourcemap: NODE_ENV === "development" ? true : false,
   modules: [
     '@nuxtjs/tailwindcss',
-    '@nuxtjs/color-mode',
+    !isTest && '@nuxtjs/color-mode',
     '@pinia/nuxt',
     '@nuxt/test-utils/module',
-  ],
+  ].filter(Boolean),
   colorMode: {
     classSuffix: ''
   },

@@ -1,4 +1,5 @@
 import { db } from "../../database/connection";
+import { isFullyPaid } from "../../util/payment";
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
@@ -11,7 +12,8 @@ export default defineEventHandler(async (event) => {
         let sql = `
             SELECT 
                 p.*,
-                c.name as client_name
+                c.name as client_name,
+                (SELECT COALESCE(SUM(pay.value_paid), 0) FROM payments pay WHERE pay.process_id = p.id AND pay.status = 'Pago') as total_paid
             FROM processes p
             JOIN clients c ON p.client_id = c.id
         `;
@@ -56,7 +58,10 @@ export default defineEventHandler(async (event) => {
             sql,
             args: [...params, limit, offset]
         });
-        const processes = dataResult.rows;
+        const processes = dataResult.rows.map((process: any) => ({
+            ...process,
+            is_fully_paid: isFullyPaid(Number(process.value_charged), Number(process.total_paid))
+        }));
 
         const totalPages = Math.ceil(total / limit);
 

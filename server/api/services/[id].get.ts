@@ -1,4 +1,5 @@
 import { db } from "../../database/connection";
+import { isFullyPaid } from "../../util/payment";
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id');
@@ -62,6 +63,7 @@ export default defineEventHandler(async (event) => {
             success: true,
             data: {
                 ...service,
+                is_fully_paid: isFullyPaid(Number(service.value_charged), totalPaid),
                 payments,
                 summary: {
                     value_charged: Number(service.value_charged),

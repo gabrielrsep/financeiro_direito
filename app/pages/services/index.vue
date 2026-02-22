@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { Plus, Search, Trash2, DollarSign, Eye, ChevronUp, ChevronDown, User, X } from 'lucide-vue-next'
+import { Plus, Search, Trash2, DollarSign, Eye, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '~/stores/toast'
 import { formatCurrency, formatDate } from '~/utils/formatters'
 import PaymentModal from '~/components/PaymentModal.vue'
-import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 
 interface Service {
   id: number
@@ -17,12 +16,7 @@ interface Service {
   status: string
   total_paid: number
   total_pending: number
-}
-
-interface Client {
-  id: number
-  name: string
-  document: string
+  is_fully_paid?: boolean
 }
 
 const router = useRouter()
@@ -34,8 +28,6 @@ const currentPage = ref(1)
 const totalPages = ref(1)
 const searchQuery = ref('')
 const selectedStatus = ref('all')
-const selectedClient = ref<Client | null>(null)
-const showClientSelectionModal = ref(false)
 const showCreateModal = ref(false)
 const showConfirmDelete = ref(false)
 const showPaymentModal = ref(false)
@@ -63,7 +55,6 @@ const fetchServices = async () => {
         limit: 10,
         search: searchQuery.value,
         status: statusFilter,
-        clientId: selectedClient.value?.id,
         sortBy: sortBy.value,
         sortOrder: sortOrder.value
       }
@@ -143,42 +134,14 @@ const getStatusBadgeClass = (status: string) => {
     ? 'px-2 py-1 rounded-full text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
     : 'px-2 py-1 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/20'
 }
-
-const handleClientSelected = (client: Client) => {
-  selectedClient.value = client
-  currentPage.value = 1
-  fetchServices()
-}
-
-const clearClientFilter = () => {
-  selectedClient.value = null
-  currentPage.value = 1
-  fetchServices()
-}
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex justify-between items-center">
-      <div class="space-y-2">
-        <div class="flex flex-wrap items-center gap-3">
-          <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Serviços</h1>
-          <div
-            v-if="selectedClient"
-            class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300"
-          >
-            Filtrado por: {{ selectedClient.name }}
-            <button
-              type="button"
-              @click="clearClientFilter"
-              class="p-1 rounded-full hover:bg-white dark:hover:bg-slate-700 transition-colors"
-              title="Limpar filtro de cliente"
-            >
-              <X class="h-3 w-3" />
-            </button>
-          </div>
-        </div>
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Serviços</h1>
         <p class="text-slate-500 dark:text-slate-400">Gerencie serviços prestados aos clientes</p>
       </div>
       <button
@@ -208,7 +171,7 @@ const clearClientFilter = () => {
 
     <!-- Filters -->
     <div class="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-      <div class="flex flex-col md:flex-row md:items-center gap-4">
+      <div class="flex flex-col md:flex-row gap-4">
         <div class="flex-1">
           <div class="relative">
             <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -218,33 +181,6 @@ const clearClientFilter = () => {
               placeholder="Buscar por descrição ou cliente..."
               class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
             />
-          </div>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-          <button
-            type="button"
-            @click="showClientSelectionModal = true"
-            class="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
-          >
-            <User class="h-4 w-4 text-slate-500 dark:text-slate-400" />
-            Selecionar cliente
-          </button>
-          <div
-            v-if="selectedClient"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-700/60 border border-slate-200 dark:border-slate-600"
-          >
-            <div class="flex flex-col leading-tight">
-              <span class="text-sm font-medium text-slate-900 dark:text-white">{{ selectedClient.name }}</span>
-              <span class="text-xs text-slate-500 dark:text-slate-400">{{ selectedClient.document }}</span>
-            </div>
-            <button
-              type="button"
-              @click="clearClientFilter"
-              class="p-1 rounded-md hover:bg-white dark:hover:bg-slate-600 transition-colors"
-              title="Limpar filtro de cliente"
-            >
-              <X class="h-4 w-4 text-slate-500 dark:text-slate-300" />
-            </button>
           </div>
         </div>
         <select
@@ -330,6 +266,7 @@ const clearClientFilter = () => {
                   <Eye class="h-4 w-4 text-slate-600 dark:text-slate-400" />
                 </button>
                 <button
+                  v-if="!service.is_fully_paid"
                   @click="openPaymentModal(service)"
                   class="p-2 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                   title="Adicionar pagamento"
@@ -390,12 +327,6 @@ const clearClientFilter = () => {
       :remainingValue="selectedServiceForPayment?.total_pending || 0"
       @close="showPaymentModal = false"
       @saved="handlePaymentCreated"
-    />
-
-    <ClientSelectionModal
-      :isOpen="showClientSelectionModal"
-      @close="showClientSelectionModal = false"
-      @select="handleClientSelected"
     />
 
     <!-- Confirm Delete Modal -->

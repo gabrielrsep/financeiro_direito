@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS processes (
     value_charged REAL DEFAULT 0,
     payment_method TEXT,
     em_conta_details TEXT, -- ex: 1000+3x500
+    all_paid_at TEXT, -- data em que o processo foi totalmente pago 
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
@@ -85,7 +86,8 @@ CREATE TABLE IF NOT EXISTS services (
     value_charged REAL NOT NULL DEFAULT 0,
     payment_method TEXT,
     em_conta_details TEXT,
-    status TEXT DEFAULT 'Ativo', -- Ativo, Concluído
+    all_paid_at TEXT, -- data em que o serviço foi totalmente pago
+    status TEXT DEFAULT 'Pendente', -- Pendente, Pago
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,

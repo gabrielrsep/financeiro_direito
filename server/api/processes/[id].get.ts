@@ -1,5 +1,6 @@
 import { defineEventHandler, getRouterParam } from 'h3'
 import { db } from '../../database/connection'
+import { isFullyPaid } from '../../util/payment'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -36,9 +37,31 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Get payment history
+    const paymentsResult = await db.execute({
+      sql: `
+        SELECT *
+        FROM payments
+        WHERE process_id = ?
+        ORDER BY payment_date DESC, created_at DESC
+      `,
+      args: [id]
+    });
+
+    const payments = paymentsResult.rows || [];
+
+    // Calculate totals
+    const totalPaid = payments
+      .filter((p: any) => p.status === 'Pago')
+      .reduce((sum, p: any) => sum + (p.value_paid || 0), 0);
+
     return {
       success: true,
-      data: process,
+      data: {
+        ...process,
+        is_fully_paid: isFullyPaid(Number(process.value_charged), totalPaid),
+        payments
+      }
     }
   } catch (error: any) {
     throw createError({

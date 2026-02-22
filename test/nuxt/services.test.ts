@@ -252,6 +252,20 @@ describe('Services API', async () => {
     expect(serviceDetails.data.payments.length).toBeGreaterThan(0)
     expect(serviceDetails.data.summary.total_paid).toBe(500)
     expect(serviceDetails.data.summary.balance).toBe(1000)
+
+    // Pay the remainder and ensure all_paid_at is set
+    await $fetch<any>('/api/payments', {
+      method: 'POST',
+      body: {
+        service_id: serviceId,
+        client_id: createdClientId,
+        value_paid: 1000,
+        status: 'Pago'
+      }
+    })
+
+    const fullyPaidDetails = await $fetch<any>(`/api/services/${serviceId}`)
+    expect(fullyPaidDetails.data.is_fully_paid).toBe(true)
   })
 
   it('should list client services', async () => {

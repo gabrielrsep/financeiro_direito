@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS services (
     value_charged REAL NOT NULL DEFAULT 0,
     payment_method TEXT,
     em_conta_details TEXT,
-    status TEXT DEFAULT 'Ativo', -- Ativo, Concluído
+    status TEXT DEFAULT 'Pendente', -- Pendente, Pago
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
