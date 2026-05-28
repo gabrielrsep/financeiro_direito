@@ -40,10 +40,10 @@ export default defineEventHandler(async (event) => {
     // Get payment history
     const paymentsResult = await db.execute({
       sql: `
-        SELECT *
-        FROM payments
-        WHERE process_id = ?
-        ORDER BY payment_date DESC, created_at DESC
+        SELECT *, amount as value_paid, movement_date as payment_date
+        FROM financial_movements
+        WHERE process_id = ? AND type = 'payment'
+        ORDER BY movement_date DESC, created_at DESC
       `,
       args: [id]
     });
@@ -51,9 +51,7 @@ export default defineEventHandler(async (event) => {
     const payments = paymentsResult.rows || [];
 
     // Calculate totals
-    const totalPaid = payments
-      .filter((p: any) => p.status === 'Pago')
-      .reduce((sum, p: any) => sum + (p.value_paid || 0), 0);
+    const totalPaid = payments.reduce((sum, p: any) => sum + (p.value_paid || 0), 0);
 
     return {
       success: true,

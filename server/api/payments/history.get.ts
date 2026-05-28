@@ -1,3 +1,4 @@
+import { getUser } from "~~/server/util/auth";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
@@ -11,17 +12,21 @@ export default defineEventHandler(async (event) => {
     const clientId = query.clientId as string;
     const status = query.status as string;
 
+    const { office_id: officeId } = await getUser(event)!;
+
     try {
-        let whereConditions: string[] = [];
-        let params: any[] = [];
+        let whereConditions: string[] = [
+            "fm.type = 'payment'",
+            "(s.office_id = ? OR p.office_id = ? OR c.office_id = ?)"
+        ];
+        let params: any[] = [officeId, officeId, officeId];
 
         if (startDate) {
-            whereConditions.push("pay.payment_date >= ?");
+            whereConditions.push("fm.movement_date >= ?");
             params.push(startDate);
         }
         if (endDate) {
-            whereConditions.push("pay.payment_date <= ?");
-            // Append end of day time if only date is provided
+            whereConditions.push("fm.movement_date <= ?");
             if (endDate.length === 10) {
                  params.push(endDate + ' 23:59:59');
             } else {
@@ -29,45 +34,48 @@ export default defineEventHandler(async (event) => {
             }
         }
         if (clientId) {
-            whereConditions.push("pay.client_id = ?");
+            whereConditions.push("fm.client_id = ?");
             params.push(clientId);
         }
         if (status) {
-            whereConditions.push("pay.status = ?");
+            whereConditions.push("fm.status = ?");
             params.push(status);
         }
         
-        let whereClause = "";
-        if (whereConditions.length > 0) {
-            whereClause = " WHERE " + whereConditions.join(" AND ");
-        }
+        const whereClause = whereConditions.length > 0 ? " WHERE " + whereConditions.join(" AND ") : "";
 
-        const countSql = `SELECT COUNT(*) as total FROM payments pay ${whereClause}`;
+        const countSql = `
+            SELECT COUNT(*) as total 
+            FROM financial_movements fm
+            LEFT JOIN services s ON s.id = fm.service_id
+            LEFT JOIN processes p ON fm.process_id = p.id
+            LEFT JOIN clients c ON fm.client_id = c.id
+            ${whereClause}
+        `;
         const dataSql = `
             SELECT 
-                pay.*,
+                fm.*, 
+                fm.amount as value_paid,
+                fm.movement_date as payment_date,
                 c.name as client_name,
-                pro.process_number
+                p.process_number,
+                s.description as service_description
             FROM
-                payments pay
-            JOIN processes pro ON
-                pay.process_id = pro.id
-            JOIN clients c ON pro.client_id = c.id OR c.is_recurrent = 1
+                financial_movements fm
+            LEFT JOIN services s ON s.id = fm.service_id
+            LEFT JOIN processes p ON fm.process_id = p.id
+            LEFT JOIN clients c ON fm.client_id = c.id
             ${whereClause}
-            ORDER BY pay.created_at DESC
+            ORDER BY fm.created_at DESC
             LIMIT ? OFFSET ?
         `;
 
-        
-
-        // Execute count
         const countResult = await db.execute({
             sql: countSql,
             args: params
         });
         const total = countResult.rows[0] ? Number(countResult.rows[0].total) : 0;
 
-        // Execute data
         const dataResult = await db.execute({
             sql: dataSql,
             args: [...params, limit, offset]

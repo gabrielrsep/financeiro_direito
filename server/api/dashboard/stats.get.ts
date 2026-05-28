@@ -1,109 +1,89 @@
 import { getFirstRow } from "~~/server/database/utils";
 import { db } from "~~/server/database/connection";
-import totalReceivableSQL from "~~/server/database/sql/stats/totalReceivable";
 import monthlyRevenueSQL from "~~/server/database/sql/stats/monthlyRevenue";
+import { getUser } from "~~/server/util/auth";
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async event => {
   type Result = {
     total: number;
   };
 
+  const user = await getUser(event);
+  const officeId = user!.office_id;
+
   try {
-    const totalReceivableResult = await db.execute(totalReceivableSQL)
-    const totalReceivableApps = getFirstRow<Result>(totalReceivableResult);
-
-    // Calculate Recurrent Receivable
-    // 1. Total expected from recurrent clients
-    const expectedRecurrentResult = await db.execute("SELECT SUM(recurrence_value) as total FROM clients WHERE is_recurrent = 1 AND deleted_at IS NULL");
-    const expectedRecurrent = getFirstRow<Result>(expectedRecurrentResult);
-
     // 2. Total paid by recurrent clients this month
     const paidRecurrentResult = await db.execute(`
-      SELECT SUM(value_paid) as total 
-      FROM payments 
-      WHERE client_id IS NOT NULL 
-      AND strftime('%m', payment_date) = strftime('%m', 'now') 
-      AND strftime('%Y', payment_date) = strftime('%Y', 'now')
-    `);
-    const paidRecurrent = getFirstRow<Result>(paidRecurrentResult);
+      SELECT SUM(amount) as total 
+      FROM financial_movements f JOIN clients c ON f.client_id = c.id
+      WHERE f.type = 'payment' 
+      AND f.client_id IS NOT NULL
+      AND c.office_id = ?
+      AND strftime('%m', f.movement_date) = strftime('%m', 'now') 
+      AND strftime('%Y', f.movement_date) = strftime('%Y', 'now')
+    `, [officeId]);
+    const paidRecurrent = getFirstRow<Result>(paidRecurrentResult)
 
-    const recurrentReceivable = (expectedRecurrent.total || 0) - (paidRecurrent.total || 0);
-    const totalReceivable = (totalReceivableApps.total || 0) + (recurrentReceivable > 0 ? recurrentReceivable : 0);
-
-    const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo'");
-    const activeProcesses = getFirstRow<Result>(activeProcessesResult);
+    const activeProcessesResult = await db.execute("SELECT COUNT(*) as total FROM processes WHERE status = 'Ativo' AND deleted_at IS NULL AND office_id = ?", [officeId]);
+    const activeProcesses = getFirstRow<Result>(activeProcessesResult)
 
     // Get service metrics
-    const activeServicesResult = await db.execute("SELECT COUNT(*) as total FROM services WHERE status = 'Ativo' AND deleted_at IS NULL");
-    const activeServices = getFirstRow<Result>(activeServicesResult);
+    const activeServicesResult = await db.execute("SELECT COUNT(*) as total FROM services WHERE status = 'Ativo' AND deleted_at IS NULL AND office_id = ?", [officeId]);
+    const activeServices = getFirstRow<Result>(activeServicesResult)
 
+    // Receivable from services: sum of (value_charged - payments) for active services in the current month
     const servicesReceivableResult = await db.execute(`
-      SELECT SUM(s.value_charged - COALESCE((
-        SELECT SUM(p.value_paid) FROM payments p WHERE p.service_id = s.id AND p.status = 'Pago'
-      ), 0)) as total
-      FROM services s
-      WHERE s.deleted_at IS NULL AND s.status = 'Ativo'
-    `);
-    const servicesReceivable = getFirstRow<Result>(servicesReceivableResult);
+    SELECT 
+      SUM(saldo_restante) as total_geral
+    FROM (
+      SELECT
+          s.value_charged - COALESCE(SUM(fm.amount), 0) as saldo_restante
+      FROM
+          services s
+      JOIN financial_movements fm ON
+          fm.service_id = s.id
+      WHERE
+          s.deleted_at IS NULL
+          AND s.status = 'Ativo'
+          AND s.office_id = ?
+          AND fm."type" = 'payment'
+          AND strftime('%m', fm.movement_date) = strftime('%m', 'now')
+          AND strftime('%Y', fm.movement_date) = strftime('%Y', 'now')
+      GROUP BY 
+          s.id, s.value_charged
+    ) saldos_por_servico;
+    `, [officeId]);
+    const servicesReceivable = getFirstRow<Result>(servicesReceivableResult)
 
     // Monthly revenue: sum of payments in the current month
-    const monthlyRevenueResult = await db.execute(monthlyRevenueSQL);
+    const monthlyRevenueResult = await db.execute(monthlyRevenueSQL, [officeId, officeId, officeId]);
     const monthlyRevenue = getFirstRow<Result>(monthlyRevenueResult)
 
     // Pending expenses: sum of pending office expenses for the current month
     const pendingExpensesResult = await db.execute(`
       SELECT SUM(amount) as total 
       FROM office_expenses 
-      WHERE status = 'Pendente' 
-      AND strftime('%m', due_date) = strftime('%m', 'now') 
+      WHERE
+      status = 'Pendente'
+      AND deleted_at IS NULL
+      AND office_id = ? 
+      AND strftime('%m', due_date) = strftime('%m', 'now')
       AND strftime('%Y', due_date) = strftime('%Y', 'now')
-    `);
-    const pendingExpenses = getFirstRow(pendingExpensesResult);
+    `, [officeId]);
+    const pendingExpenses = getFirstRow(pendingExpensesResult)
 
-    // Recent processes
-    const recentProcessesResult = await db.execute(`
-      SELECT p.*, c.name as client_name 
-      FROM processes p 
-      JOIN clients c ON p.client_id = c.id 
-      ORDER BY p.created_at DESC 
-      LIMIT 5
-    `);
-    const recentProcesses = recentProcessesResult.rows;
-    
-    // Recent services
-    const recentServicesResult = await db.execute(`
-      SELECT s.*, c.name as client_name 
-      FROM services s 
-      JOIN clients c ON s.client_id = c.id 
-      ORDER BY s.created_at DESC 
-      LIMIT 5
-    `);
-    const recentServices = recentServicesResult.rows;
-
-    // Recent payments
-    const recentPaymentsResult = await db.execute(`
-      SELECT py.*, p.process_number, c.name as client_name 
-      FROM payments py 
-      JOIN processes p ON py.process_id = p.id 
-      JOIN clients c ON p.client_id = c.id 
-      ORDER BY py.created_at DESC 
-      LIMIT 5
-    `);
-    const recentPayments = recentPaymentsResult.rows;
+    const servicesReceivableValue = Number((servicesReceivable as any)?.total || 0)
 
     return {
       kpis: {
-        totalReceivable: totalReceivable,
+        totalReceivable: servicesReceivableValue,
         activeProcesses: activeProcesses.total || 0,
         activeServices: activeServices.total || 0,
-        servicesReceivable: Number((servicesReceivable as any)?.total || 0),
+        servicesReceivable: servicesReceivableValue,
         monthlyRevenue: Number((monthlyRevenue as any)?.total || 0),
         recurrentRevenue: Number((paidRecurrent as any)?.total || 0),
         pendingExpenses: Number((pendingExpenses as any)?.total || 0),
-      },
-      recentProcesses,
-      recentServices,
-      recentPayments
+      }
     };
   } catch (error: any) {
     throw createError({

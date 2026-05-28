@@ -4,18 +4,11 @@ import bcrypt from "bcrypt";
 import type { PutBlobResult } from "@vercel/blob";
 import { findFormDataValue, getFormDataValue, uploadFile } from "~~/server/util/upload";
 import { devLogger } from "~~/server/util/logger";
+import { getUser } from "~~/server/util/auth";
 
 export default defineEventHandler(async (event) => {
-  const session = getCookie(event, "auth_session");
-  
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-      message: "Não autorizado.",
-    });
-  }
 
-  const { office_id } = JSON.parse(session);
+  const { office_id } =  await getUser(event)!;
   const body = await readMultipartFormData(event);
 
   const name = getFormDataValue(body, "name");

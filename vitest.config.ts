@@ -28,7 +28,10 @@ export default defineConfig({
           name: 'nuxt',
           include: ['test/nuxt/*.{test,spec}.ts'],
           environment: 'nuxt',
-          setupFiles: ['./test/setup.ts']
+          setupFiles: ['./test/setup.ts'],
+          env: {
+            DATABASE_URL: 'file:server/database/test.db',
+          },
         },
       }),
     ],

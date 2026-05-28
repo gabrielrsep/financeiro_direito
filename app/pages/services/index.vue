@@ -129,11 +129,6 @@ const handlePaymentCreated = () => {
   fetchServices()
 }
 
-const getStatusBadgeClass = (status: string) => {
-  return status === 'Ativo'
-    ? 'px-2 py-1 rounded-full text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
-    : 'px-2 py-1 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/20'
-}
 </script>
 
 <template>
@@ -183,14 +178,6 @@ const getStatusBadgeClass = (status: string) => {
             />
           </div>
         </div>
-        <select
-          v-model="selectedStatus"
-          class="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-        >
-          <option value="all">Todos os Status</option>
-          <option value="Ativo">Ativo</option>
-          <option value="Concluído">Concluído</option>
-        </select>
       </div>
     </div>
 
@@ -234,15 +221,6 @@ const getStatusBadgeClass = (status: string) => {
             </th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Valor Pago</th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Pendente</th>
-            <th class="px-6 py-3 text-left">
-              <button
-                @click="handleSort('status')"
-                class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                Status
-                <component v-if="getSortIcon('status')" :is="getSortIcon('status')" class="h-4 w-4" />
-              </button>
-            </th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Ações</th>
           </tr>
         </thead>
@@ -253,9 +231,6 @@ const getStatusBadgeClass = (status: string) => {
             <td class="px-6 py-4 text-slate-900 dark:text-white font-medium">{{ formatCurrency(service.value_charged) }}</td>
             <td class="px-6 py-4 text-green-600 dark:text-green-400 font-medium">{{ formatCurrency(service.total_paid) }}</td>
             <td class="px-6 py-4 text-amber-600 dark:text-amber-400 font-medium">{{ formatCurrency(service.total_pending) }}</td>
-            <td class="px-6 py-4">
-              <span :class="getStatusBadgeClass(service.status)">{{ service.status }}</span>
-            </td>
             <td class="px-6 py-4">
               <div class="flex items-center gap-2">
                 <button
@@ -321,7 +296,6 @@ const getStatusBadgeClass = (status: string) => {
     <PaymentModal
       :isOpen="showPaymentModal && !!selectedServiceForPayment"
       :serviceId="selectedServiceForPayment?.id || null"
-      :clientId="selectedServiceForPayment?.client_id"
       :clientName="selectedServiceForPayment?.client_name || ''"
       :processNumber="selectedServiceForPayment?.description || ''"
       :remainingValue="selectedServiceForPayment?.total_pending || 0"

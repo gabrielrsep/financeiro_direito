@@ -28,7 +28,6 @@ async function handleLogin() {
   if (result.success) {
     navigateTo('/')
   } else {
-    console.log(result)
     errorMessage.value = result.error || 'Falha na autenticação.'
   }
 
@@ -78,7 +77,9 @@ async function handleLogin() {
           <div class="space-y-2">
             <div class="flex items-center justify-between ml-1">
               <label for="password" class="text-sm font-medium text-slate-300">Senha</label>
-              <!-- Optional: Forgot password link could go here -->
+              <NuxtLink to="/password-recovery" class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                Esqueceu a senha?
+              </NuxtLink>
             </div>
             <div class="relative group">
               <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

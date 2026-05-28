@@ -7,6 +7,7 @@ let db: Client
 db = createClient({
     url: DATABASE_URL!,
     authToken: DATABASE_AUTH_TOKEN,
+    
 })
 
 export function databaseArgs(...args: any[]) {

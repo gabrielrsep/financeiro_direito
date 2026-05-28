@@ -23,6 +23,7 @@ const authStore = useAuthStore()
             <NuxtLink to="/services" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Serviços</NuxtLink>
             <NuxtLink to="/gastos" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Contas a Receber</NuxtLink>
             <NuxtLink to="/gastos/escritorio" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Gastos Escritório</NuxtLink>
+            <NuxtLink to="/offices" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Escritórios</NuxtLink>
           </nav>
         </div>
         <div class="flex items-center space-x-4">

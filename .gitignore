@@ -28,3 +28,6 @@ server/database/**/*.sql
 .vercel
 .env*.local
 server/storage
+server/database/db.sqlite-shm
+server/database/test.db
+server/database/db.sqlite-wal

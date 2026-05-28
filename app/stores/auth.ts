@@ -3,8 +3,10 @@ import { defineStore } from 'pinia'
 export type StorangeUser = {
   id: string
   name: string
-  email: string
+  username: string
+  email?: string
   avatar_url: string,
+  office_id: number | null
   office_name: string
 }
 
@@ -17,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const headers = useRequestHeaders(['cookie']) as Record<string, string>
       const data = await $fetch<{ user: StorangeUser }>('/api/auth/user', { headers })
+      data
       user.value = data.user
     } catch (error) {
       user.value = null

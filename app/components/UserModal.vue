@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import { X, User, Mail, Lock, CheckCircle, Camera } from 'lucide-vue-next'
 
 const props = defineProps<{
   user?: any
   isOpen: boolean
+  officeId?: number | null
+  officeName?: string
 }>()
 
 const emit = defineEmits(['close', 'saved'])
@@ -21,6 +24,12 @@ const avatarFile = ref<File | null>(null)
 
 const loading = ref(false)
 const error = ref('')
+
+const modalTitle = computed(() => {
+  if (props.user) return 'Editar Usuário'
+  if (props.officeName) return `Novo Usuário — ${props.officeName}`
+  return 'Novo Usuário'
+})
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
@@ -70,7 +79,11 @@ async function handleSubmit() {
   error.value = ''
   
   try {
-    const url = props.user ? `/api/users/${props.user.id}` : '/api/users'
+    const url = props.user
+      ? `/api/users/${props.user.id}`
+      : props.officeId
+        ? `/api/offices/${props.officeId}/users`
+        : '/api/users'
     const method = props.user ? 'PUT' : 'POST'
     
     const formData = new FormData()
@@ -103,10 +116,13 @@ async function handleSubmit() {
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
     <div class="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in duration-200">
       <div class="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center">
-          <User class="w-5 h-5 mr-2 text-slate-500" />
-          {{ user ? 'Editar Usuário' : 'Novo Usuário' }}
-        </h2>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center">
+            <User class="w-5 h-5 mr-2 text-slate-500" />
+            {{ modalTitle }}
+          </h2>
+          <p v-if="props.officeName && !props.user" class="text-sm text-slate-500 dark:text-slate-400 mt-1">Usuário será vinculado ao escritório {{ props.officeName }}.</p>
+        </div>
         <button @click="$emit('close')" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
           <X class="w-5 h-5" />
         </button>

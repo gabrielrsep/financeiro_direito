@@ -1,8 +1,11 @@
+import { getUser } from "~~/server/util/auth";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
     const { description, amount, due_date, is_recurrent } = body;
+
+    const user = await getUser(event);
 
     if (!description || !amount || !due_date) {
         throw createError({
@@ -14,10 +17,10 @@ export default defineEventHandler(async (event) => {
     try {
         const result = await db.execute({
             sql: `
-                INSERT INTO office_expenses (description, amount, due_date, is_recurrent)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO office_expenses (office_id, description, amount, due_date, is_recurrent)
+                VALUES (?, ?, ?, ?, ?)
             `,
-            args: [description, amount, due_date, is_recurrent ? 1 : 0]
+            args: [user!.office_id, description, amount, due_date, is_recurrent ? 1 : 0]
         });
 
         return {
@@ -27,7 +30,7 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         throw createError({
             statusCode: 500,
-            message: error.message,
+            statusMessage: error.message,
         });
     }
 });

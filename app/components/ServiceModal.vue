@@ -153,7 +153,6 @@ const closeModal = () => {
                         v-model="paymentMethod"
                         class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                     >
-                        <option value="em_conta">Parcelado pelo Escritório</option>
                         <option value="pix">PIX</option>
                         <option value="cartao">Cartão de Crédito</option>
                         <option value="transferencia">Transferência Bancária</option>
@@ -176,8 +175,12 @@ const closeModal = () => {
                     class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
                 >
                     <FileText v-if="!isLoading" class="h-4 w-4" />
-                    <span v-if="!isLoading">Criar Serviço</span>
-                    <span v-else>Criando...</span>
+                    <template v-if="!isLoading">
+                        <span>Criar Serviço</span>
+                    </template>
+                    <template v-else>
+                        <span>Criando...</span>
+                    </template>
                 </button>
             </div>
         </div>

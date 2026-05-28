@@ -1,14 +1,9 @@
+import { getUser } from "~~/server/util/auth";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
-  const session = getCookie(event, "auth_session");
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-    });
-  }
 
-  const { office_id, id: currentUserId } = JSON.parse(session);
+  const { office_id, id: currentUserId } = await getUser(event)!;
   const id = getRouterParam(event, "id");
 
   if (!id) {

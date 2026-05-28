@@ -1,3 +1,4 @@
+import { getUser } from "~~/server/util/auth";
 import { databaseArgs, db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
@@ -9,9 +10,10 @@ export default defineEventHandler(async (event) => {
         status, 
         value_charged, 
         payment_method,
-        target,
-        installments // { count: number, down_payment: number, first_due_date: string }
+        target
     } = await readBody(event);
+
+    const user = await getUser(event)
 
     if (!client_id || !process_number) {
         throw createError({
@@ -21,15 +23,16 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const tx = await db.transaction("write");
+        const tx = await db.transaction();
         try {
             const result = await tx.execute({
                 sql: `
-                    INSERT INTO processes (client_id, process_number, tribunal, description, status, value_charged, payment_method, target)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO processes (client_id, office_id, process_number, tribunal, description, status, value_charged, payment_method, target)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `,
                 args: databaseArgs(
-                    client_id, 
+                    client_id,
+                    user!.office_id,
                     process_number, 
                     tribunal, 
                     description,
@@ -42,46 +45,7 @@ export default defineEventHandler(async (event) => {
             
             const processId = Number(result.lastInsertRowid);
 
-            // Handle installments if payment method is 'em_conta'
-            if (payment_method === 'em_conta' && installments) {
-
-                
-                const { count, down_payment, first_due_date } = installments;
-                
-                // 1. Handle down payment if exists
-                if (down_payment > 0) {
-                    await tx.execute({
-                        sql: `
-                            INSERT INTO payments (process_id, value_paid, payment_date, status)
-                            VALUES (?, ?, ?, ?)
-                        `,
-                        args: [processId, down_payment, new Date().toISOString(), 'Pago']
-                    });
-                }
-
-                // 2. Create installments
-                const installmentValue = (value_charged - (down_payment || 0)) / count;
-                const startDate = new Date(first_due_date || new Date());
-
-                for (let i = 0; i < count; i++) {
-                    const dueDate = new Date(startDate);
-                    dueDate.setMonth(startDate.getMonth() + i);
-                    
-                    await tx.execute({
-                        sql: `
-                            INSERT INTO payments (process_id, value_paid, due_date, status)
-                            VALUES (?, ?, ?, ?)
-                        `,
-                        args: [processId, installmentValue, dueDate.toISOString(), 'Pendente']
-                    });
-                }
-
-                const emContaDetails = `${value_charged}+${count}x${installmentValue}`;
-                await tx.execute({
-                    sql: `UPDATE processes SET em_conta_details = ? WHERE id = ?`,
-                    args: [emContaDetails, processId]
-                })
-            }
+            
 
             await tx.commit();
 
@@ -111,7 +75,7 @@ export default defineEventHandler(async (event) => {
         }
         throw createError({
             statusCode: 500,
-            message: error.message,
+            statusMessage: error.message,
         });
     }
 });

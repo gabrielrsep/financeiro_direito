@@ -10,21 +10,24 @@ export default defineEventHandler(async (event) => {
 
     try {
         let sql = `
-            SELECT 
+            SELECT
                 p.*,
-                c.name as client_name,
-                (SELECT COALESCE(SUM(pay.value_paid), 0) FROM payments pay WHERE pay.process_id = p.id AND pay.status = 'Pago') as total_paid
-            FROM processes p
+                SUM(fm.amount) AS total_paid,
+                c.name AS client_name
+            FROM
+                processes p
+            LEFT JOIN financial_movements fm ON
+                fm.process_id = p.id
+                AND fm."type" = 'payment'
             JOIN clients c ON p.client_id = c.id
         `;
         let countSql = `
             SELECT COUNT(*) as total 
-            FROM processes p
-            JOIN clients c ON p.client_id = c.id
+            FROM processes p JOIN clients c ON p.client_id = c.id
         `;
         
         const params: string[] = [];
-        const conditions: string[] = [];
+        const conditions: string[] = ['p.deleted_at IS NULL', 'c.deleted_at IS NULL'];
 
         if (search) {
             conditions.push("(p.process_number LIKE ? OR c.name LIKE ?)");
@@ -36,15 +39,14 @@ export default defineEventHandler(async (event) => {
             conditions.push("p.status != 'Arquivado'");
         }
 
-        conditions.push("p.deleted_at IS NULL");
-
         if (conditions.length > 0) {
             const whereClause = " WHERE " + conditions.join(" AND ");
             sql += whereClause;
             countSql += whereClause;
         }
 
-        sql += " ORDER BY p.updated_at DESC LIMIT ? OFFSET ?";
+
+        sql += " GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
 
         // Count total
         const totalResult = await db.execute({
@@ -58,6 +60,9 @@ export default defineEventHandler(async (event) => {
             sql,
             args: [...params, limit, offset]
         });
+
+        
+
         const processes = dataResult.rows.map((process: any) => ({
             ...process,
             is_fully_paid: isFullyPaid(Number(process.value_charged), Number(process.total_paid))

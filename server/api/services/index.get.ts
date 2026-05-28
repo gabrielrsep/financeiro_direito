@@ -1,5 +1,16 @@
+import { getUser } from "~~/server/util/auth";
 import { db } from "../../database/connection";
 import { isFullyPaid } from "../../util/payment";
+
+type ServiceWithPaymentInfo = {
+    id: number;
+    description: string;
+    client_name: string;
+    total_paid: number;
+    total_pending: number;
+    value_charged: number;
+    is_fully_paid: boolean;
+};
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
@@ -10,13 +21,15 @@ export default defineEventHandler(async (event) => {
     const status = query.status as string;
     const offset = (page - 1) * limit;
 
+        const { office_id: officeId } = await getUser(event)!;
+
     try {
         let sql = `
             SELECT 
                 s.*,
                 c.name as client_name,
-                (SELECT COALESCE(SUM(p.value_paid), 0) FROM payments p WHERE p.service_id = s.id AND p.status = 'Pago') as total_paid,
-                s.value_charged - (SELECT COALESCE(SUM(p.value_paid), 0) FROM payments p WHERE p.service_id = s.id AND p.status = 'Pago') as total_pending
+                (SELECT COALESCE(SUM(p.amount), 0) FROM financial_movements p WHERE p.service_id = s.id AND p.type = 'payment') as total_paid,
+                s.value_charged - (SELECT COALESCE(SUM(p.amount), 0) FROM financial_movements p WHERE p.service_id = s.id AND p.type = 'payment') as total_pending
             FROM services s
             JOIN clients c ON s.client_id = c.id
         `;
@@ -26,8 +39,8 @@ export default defineEventHandler(async (event) => {
             JOIN clients c ON s.client_id = c.id
         `;
         
-        const params: any[] = [];
-        const conditions: string[] = [];
+        const params: any[] = [officeId];
+        const conditions: string[] = ['s.office_id = ?', 's.deleted_at IS NULL'];
 
         if (search) {
             conditions.push("(s.description LIKE ? OR c.name LIKE ?)");
@@ -63,20 +76,21 @@ export default defineEventHandler(async (event) => {
         const total = totalResult.rows[0] ? Number(totalResult.rows[0].total) : 0;
 
         // Get data
-        const dataResult = await db.execute({
+        const dataResult: ServiceWithPaymentInfo[] = await db.execute({
             sql,
             args: [...params, limit, offset]
-        });
-        const services = dataResult.rows.map((service: any) => ({
-            ...service,
-            is_fully_paid: isFullyPaid(Number(service.value_charged), Number(service.total_paid))
-        }));
+        }).then(res => res.rows);
+        
+
+        for (const service of dataResult) {
+            service.is_fully_paid = isFullyPaid(Number(service.value_charged), Number(service.total_paid));
+        }
 
         const totalPages = Math.ceil(total / limit);
 
         return {
             success: true,
-            data: services,
+            data: dataResult,
             meta: {
                 total,
                 page,

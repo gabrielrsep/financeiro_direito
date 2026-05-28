@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UserPlus, Pencil, Trash2, Users, Search, ChevronRight } from 'lucide-vue-next'
+import { UserPlus, Pencil, Trash2, Users, Search } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 const users = ref<any[]>([])

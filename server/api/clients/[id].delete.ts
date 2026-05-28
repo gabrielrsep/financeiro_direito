@@ -1,4 +1,5 @@
 import { db } from "../../database/connection";
+import { getUser } from "~~/server/util/auth";
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, "id");
@@ -10,9 +11,30 @@ export default defineEventHandler(async (event) => {
         });
     }
 
+    const getOffice = await db.execute('SELECT office_id FROM clients WHERE id = ? AND deleted_at IS NULL', [id]);
+
+    if(getOffice.rows.length === 0) {
+        throw createError({
+            statusCode: 404,
+            message: "Client not found",
+        })
+    }
+
+    const office_id = getOffice.rows[0]?.office_id;
+
+    const user = await getUser(event);
+
+    if (user?.office_id !== office_id) {
+        throw createError({
+            statusCode: 403,
+            message: "Você não tem permissão para deletar este cliente",
+        });
+    }
+    
+
     try {
         const result = await db.execute({
-            sql: "DELETE FROM clients WHERE id = ?",
+            sql: "UPDATE clients SET deleted_at = datetime('now') WHERE id = ?",
             args: [id]
         });
 
@@ -28,7 +50,6 @@ export default defineEventHandler(async (event) => {
             message: "Client deleted successfully",
         };
     } catch (error: any) {
-        if (error.statusCode) throw error;
         throw createError({
             statusCode: 500,
             message: error.message,

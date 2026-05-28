@@ -10,13 +10,14 @@ export default `SELECT
 	- 
 	(
 	SELECT
-		SUM(pa.value_paid)
+		SUM(pa.amount)
 	FROM
-		payments pa
+		financial_movements pa
 	INNER JOIN processes pr ON
 		pa.process_id = pr.id
 		AND pr.deleted_at IS NULL
 	WHERE
 		pr.payment_method = 'em_conta'
+		AND pa.type = 'payment'
 		AND pa.status = 'Pendente') 
 AS total;`

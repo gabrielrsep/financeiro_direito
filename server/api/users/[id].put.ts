@@ -4,17 +4,11 @@ import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
 import { findFormDataValue, getFormDataValue, removeFile, uploadFile } from "~~/server/util/upload";
 import { devLogger } from "~~/server/util/logger";
+import { getUser } from "~~/server/util/auth";
 
 export default defineEventHandler(async (event) => {
-  const session = getCookie(event, "auth_session");
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-      message: "Não autorizado.",
-    });
-  }
 
-  const { office_id } = JSON.parse(session);
+  const { office_id } =  await getUser(event)!;
   const id = getRouterParam(event, "id");
 
   if (!id) {

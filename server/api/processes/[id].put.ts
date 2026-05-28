@@ -1,9 +1,11 @@
 import { db } from "~~/server/database/connection";
+import { getUser } from "~~/server/util/auth";
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, "id")
     const body = await readBody(event)
-    const { payment_method: newPaymentMethod, ...updateData } = body
+
+    const user = await getUser(event)
 
     if (!id) {
         throw createError({
@@ -15,7 +17,7 @@ export default defineEventHandler(async (event) => {
     try {
         // Buscar método de pagamento atual
         const processResult = await db.execute({
-            sql: "SELECT payment_method FROM processes WHERE id = ?",
+            sql: "SELECT * FROM processes WHERE id = ?",
             args: [id],
         })
 
@@ -26,29 +28,25 @@ export default defineEventHandler(async (event) => {
             })
         }
 
-        const currentPaymentMethod = processResult.rows[0].payment_method
+        const process = processResult.rows[0]
 
-        // Validar trocar método de pagamento
-        if (newPaymentMethod && newPaymentMethod !== currentPaymentMethod) {
+        if(process!.office_id !== user!.office_id) {
             throw createError({
                 statusCode: 403,
-                statusMessage: "Não é permitido alterar o método de pagamento após a criação do processo. Para mudanças, exclua e recrie o processo.",
-                data: {
-                    currentPaymentMethod,
-                    attemptedPaymentMethod: newPaymentMethod
-                }
+                statusMessage: "Você não tem permissão para atualizar este processo",
             })
         }
 
+        const filterKeys = (key: unknown) => !['id', 'created_at', 'updated_at', 'deleted_at'].includes(key as string)
+
         // Atualizar processo (sem alterar payment_method)
-        const setClause = Object.keys(updateData)
-            .filter(key => key !== 'payment_method' && key !== 'id')
+        const setClause = Object.keys(body)
+            .filter(filterKeys)
             .map(key => `${key} = ?`)
             .join(', ')
 
-        const values = Object.keys(updateData)
-            .filter(key => key !== 'payment_method' && key !== 'id')
-            .map(key => updateData[key])
+        const values: any[] = Object.values(body)
+            .filter(filterKeys)
 
         if (setClause) {
             await db.execute({
@@ -66,8 +64,10 @@ export default defineEventHandler(async (event) => {
         const updatedProcess = updatedResult.rows[0] || null
 
         return { success: true, message: "Processo atualizado com sucesso", data: updatedProcess }
-    } catch (error) {
-        console.error("Erro ao atualizar processo:", error)
-        throw error
+    } catch (error: unknown) {
+        throw createError({
+            statusCode: 500,
+            message: (error as Error).message,
+        })
     }
 })

@@ -39,7 +39,7 @@ const queryParams = computed(() => ({
     search: searchQuery.value
 }))
 
-const { data, refresh: refreshGastos } = await useFetch<ApiResponse>('/api/gastos', {
+const { data, refresh: refreshGastos } = await useFetch<ApiResponse>('/api/processes', {
     params: queryParams
 })
 
@@ -47,13 +47,18 @@ const { data, refresh: refreshGastos } = await useFetch<ApiResponse>('/api/gasto
 const scheduledMonth = ref(new Date().getMonth() + 1)
 const scheduledYear = ref(new Date().getFullYear())
 
-const scheduledQueryParams = computed(() => ({
-    month: scheduledMonth.value,
-    year: scheduledYear.value,
-    search: searchQuery.value
-}))
+const scheduledQueryParams = computed(() => {
+    const startDate = `${scheduledYear.value}-${String(scheduledMonth.value).padStart(2, '0')}-01`
+    const lastDay = new Date(scheduledYear.value, scheduledMonth.value, 0).getDate()
+    const endDate = `${scheduledYear.value}-${String(scheduledMonth.value).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    
+    return {
+        startDate,
+        endDate
+    }
+})
 
-const { data: scheduledData, refresh: refreshScheduled } = await useFetch<any>('/api/gastos/scheduled', {
+const { data: scheduledData, refresh: refreshScheduled } = await useFetch<any>('/api/payments/history', {
     params: scheduledQueryParams
 })
 
@@ -80,6 +85,7 @@ const years = computed(() => {
 })
 
 const items = computed(() => data.value?.data || [])
+
 const total = computed(() => data.value?.meta?.total || 0)
 const totalPages = computed(() => data.value?.meta?.totalPages || 1)
 
@@ -278,23 +284,23 @@ const getRemainingValue = (process: Process) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                            <tr v-for="item in scheduledItems" :key="item.payment_id"
+                            <tr v-for="item in scheduledItems" :key="item.id"
                                 class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                    {{ new Date(item.due_date).toLocaleDateString('pt-BR') }}
+                                    {{ new Date(item.movement_date).toLocaleDateString('pt-BR') }}
                                 </td>
                                 <td class="p-4 align-middle font-medium text-slate-900 dark:text-white">{{ item.process_number }}</td>
                                 <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ item.client_name }}</td>
                                 <td class="p-4 align-middle text-amber-600 dark:text-amber-400 font-bold">
-                                    {{ formatCurrency(item.value_due) }}
+                                    {{ formatCurrency(item.amount) }}
                                 </td>
                                 <td class="p-4 align-middle text-right flex justify-end space-x-2">
-                                    <button @click="openPaymentModal(item, item.payment_id, item.value_due)"
+                                    <button @click="openPaymentModal(item, item.id, item.amount)"
                                         class="inline-flex items-center justify-center rounded-md bg-emerald-50 dark:bg-emerald-900/30 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors focus:ring-2 focus:ring-emerald-500 border border-emerald-200 dark:border-emerald-800">
                                         <DollarSign class="mr-1 h-3 w-3" /> Receber
                                     </button>
-                                    <button v-if="!isExpired(item.due_date)"
-                                        @click="confirmDeletePayment(item.payment_id)"
+                                    <button v-if="!isExpired(item.movement_date)"
+                                        @click="confirmDeletePayment(item.id)"
                                         class="inline-flex items-center justify-center rounded-md bg-red-50 dark:bg-red-900/30 px-3 py-1.5 text-xs font-semibold text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors focus:ring-2 focus:ring-red-500 border border-red-200 dark:border-red-800"
                                         title="Remover agendamento">
                                         <Trash2 class="h-3 w-3" />

@@ -1,3 +1,4 @@
+import { getUser } from "~~/server/util/auth";
 import { db } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
@@ -7,6 +8,8 @@ export default defineEventHandler(async (event) => {
     const search = (query.search as string || '').toLowerCase();
     const sortBy = (query.sortBy as string) || 'created_at-desc';
     const offset = (page - 1) * limit;
+
+    const { office_id: officeId } = await getUser(event)
 
     const currentDate = new Date();
     const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -21,17 +24,17 @@ export default defineEventHandler(async (event) => {
         let sql = `
         SELECT
             c.*,
-            c.recurrence_value - COALESCE( SUM(p.value_paid), 0) recurrence_paid
+            c.recurrence_value - COALESCE( SUM(fm.amount), 0) recurrence_paid
         FROM
             clients c
-        LEFT JOIN payments p ON
-            c.id = p.client_id
-            AND p.status = 'Pago'
-            AND p.payment_date BETWEEN '${currentMonthStartStr}' AND '${currentMonthEndStr}'
+        LEFT JOIN financial_movements fm ON
+            c.id = fm.client_id
+            AND fm.type = 'payment'
+            AND fm.movement_date BETWEEN '${currentMonthStartStr}' AND '${currentMonthEndStr}' 
         `;
-        let countSql = "SELECT COUNT(*) as total FROM clients";
-        const params: any[] = [];
-        const whereConditions: string[] = [];
+        let countSql = "SELECT COUNT(*) as total FROM clients c";
+        const params: any[] = [ officeId ];
+        const whereConditions: string[] = ['c.office_id = ?'];
 
         if (search) {
             whereConditions.push("(name LIKE ? OR replace(document, '.', '') LIKE ?)");
@@ -43,11 +46,9 @@ export default defineEventHandler(async (event) => {
             whereConditions.push("is_recurrent = 1");
         }
 
-        if (whereConditions.length > 0) {
-            const whereClause = " WHERE " + whereConditions.join(" AND ");
-            sql += whereClause;
-            countSql += whereClause;
-        }
+        const whereClause = " WHERE " + whereConditions.join(" AND ");
+        sql += whereClause;
+        countSql += whereClause;
 
         // Sorting mapping
         let orderBy = "created_at DESC";
@@ -91,8 +92,3 @@ export default defineEventHandler(async (event) => {
         });
     }
 });
-
-// Helper function to handle possible quote changes if needed, 
-// strictly for SQLite I'll stick to standard LIKE. 
-// Note: 'change_quote' is not a standard SQLite function, I used it conceptually. 
-// Let's stick to standard SQL. 

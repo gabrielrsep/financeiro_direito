@@ -6,12 +6,10 @@ import {
     User,
     Phone,
     MapPin,
-    CreditCard,
     DollarSign,
     CheckCircle2,
     Clock,
     Trash2,
-    Edit2
 } from 'lucide-vue-next'
 import { formatCurrency, formatDate } from '~/utils/formatters'
 import { useToastStore } from '~/stores/toast'
@@ -44,6 +42,7 @@ interface ServiceDetails {
     client_document: string
     client_contact: string
     client_address: string
+    is_fully_paid: boolean
     payments: Payment[]
     summary: {
         value_charged: number
@@ -60,6 +59,8 @@ const isDeleting = ref(false)
 const { data: response, pending, error, refresh } = await useFetch<{ success: boolean; data: ServiceDetails }>(`/api/services/${serviceId}`)
 
 const service = computed(() => response.value?.data)
+
+const isFullyPaid = computed(() => service.value?.is_fully_paid)
 
 useHead({
     title: computed(() => `Serviço: ${service.value?.description || ''}`)
@@ -104,7 +105,7 @@ const deleteService = async () => {
 
         <div v-else-if="error || !service" class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-8 rounded-lg text-center">
             <h2 class="text-xl font-bold text-red-800 dark:text-red-400 mb-2">Erro ao carregar serviço</h2>
-            <p class="text-red-600 dark:text-red-300">{{ error?.statusMessage || 'Serviço não encontrado no sistema.' }}</p>
+            <p class="text-red-600 dark:text-red-300">{{ error?.message || 'Serviço não encontrado no sistema.' }}</p>
             <NuxtLink to="/services" class="mt-4 inline-block text-sm font-medium underline">Retornar à lista</NuxtLink>
         </div>
 
@@ -219,7 +220,7 @@ const deleteService = async () => {
                             <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center">
                                 <Clock class="w-4 h-4 mr-2" /> Histórico de Pagamentos
                             </h3>
-                            <button
+                            <button v-if="!isFullyPaid"
                                 @click="showPaymentModal = true"
                                 class="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                             >

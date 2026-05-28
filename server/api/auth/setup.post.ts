@@ -27,24 +27,23 @@ export default defineEventHandler(async (event) => {
 
   try {
     // 3. Hash Password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
 
-    // 4. Create Office and User in a transaction (batch)
-    // We need to get the office ID after insert, so we'll do literal sequential but could use transaction if needed.
-    // LibSQL batch doesn't easily return IDs for intermediate steps without complex logic.
-    // We'll use a transaction block if supported or discrete steps for simplicity in this initial setup.
-    
-    const officeResult = await db.execute({
+    const trx = await db.transaction();
+
+    const officeResult = await trx.execute({
       sql: "INSERT INTO offices (name) VALUES (?)",
       args: [officeName]
     });
     
     const officeId = Number(officeResult.lastInsertRowid);
 
-    const userResult = await db.execute({
+    const userResult = await trx.execute({
       sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
       args: [officeId, adminName, username, email, hashedPassword]
     });
+
+    await trx.commit();
 
     const userId = Number(userResult.lastInsertRowid);
 
@@ -63,11 +62,7 @@ export default defineEventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 7, // 1 week
       path: "/",
     });
-
-    return {
-      success: true,
-      user: sessionData,
-    };
+    
   } catch (error: any) {
     console.error("Setup error:", error);
     throw createError({

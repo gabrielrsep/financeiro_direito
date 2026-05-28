@@ -40,24 +40,30 @@ export default defineEventHandler(async (event) => {
         // Get payment history
         const paymentsResult = await db.execute({
             sql: `
-                SELECT *
-                FROM payments
+                SELECT *, amount as value_paid, movement_date as payment_date
+                FROM financial_movements
                 WHERE service_id = ?
-                ORDER BY payment_date DESC, created_at DESC
+                ORDER BY movement_date DESC, created_at DESC
             `,
             args: [id]
         });
 
+        const totalPaidResult = await db.execute(`
+            SELECT
+                SUM(amount)
+            FROM
+            financial_movements
+            WHERE
+            service_id = ? AND "type" = 'payment'
+        `, [id])
+
         const payments = paymentsResult.rows || [];
 
-        // Calculate totals
-        const totalPaid = payments
-            .filter((p: any) => p.status === 'Pago')
-            .reduce((sum, p: any) => sum + (p.value_paid || 0), 0);
+        
 
-        const totalPending = payments
-            .filter((p: any) => p.status === 'Pendente')
-            .reduce((sum, p: any) => sum + (p.value_paid || 0), 0);
+        const totalPaid = totalPaidResult.rows[0] ? Number(totalPaidResult.rows[0][0]) : 0;
+        const totalPending = Number(service.value_charged) - totalPaid;
+
 
         return {
             success: true,

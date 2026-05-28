@@ -1,3 +1,5 @@
+import { getUser } from "~~/server/util/auth";
+
 export default defineEventHandler((event) => {
   const session = getCookie(event, "auth_session");
 

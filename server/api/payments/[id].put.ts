@@ -13,9 +13,9 @@ export default defineEventHandler(async (event) => {
 
     try {
 
-        // Buscar pagamento existente com created_at
+        // Buscar movimento existente com created_at
         const paymentResult = await db.execute({
-            sql: "SELECT created_at FROM payments WHERE id = ?",
+            sql: "SELECT created_at FROM financial_movements WHERE id = ?",
             args: [id],
         })
 
@@ -38,10 +38,10 @@ export default defineEventHandler(async (event) => {
             })
         }
 
-        // Atualizar pagamento
+        // Atualizar movimento
         await db.execute({
-            sql: `UPDATE payments 
-                  SET value_paid = ?, payment_date = ?, status = ? 
+            sql: `UPDATE financial_movements 
+                  SET amount = ?, movement_date = ?, status = ? 
                   WHERE id = ?`,
             args: [value_paid, payment_date, status || "Pago", id],
         })

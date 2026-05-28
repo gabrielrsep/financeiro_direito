@@ -46,7 +46,6 @@ CREATE TABLE IF NOT EXISTS processes (
     status TEXT DEFAULT 'Ativo', -- Ativo, Arquivado, Concluido
     value_charged REAL DEFAULT 0,
     payment_method TEXT,
-    em_conta_details TEXT, -- ex: 1000+3x500
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
@@ -76,21 +75,25 @@ CREATE TABLE IF NOT EXISTS services (
     deleted_at DATETIME,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE IF NOT EXISTS financial_movements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     process_id INTEGER,
     service_id INTEGER,
-    client_id INTEGER,
-    value_paid REAL NOT NULL,
-    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'Pago', -- Pago, Pendente
-    due_date DATETIME,
+    client_id INTEGER NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('charge', 'payment')),
+    amount REAL NOT NULL,
+    movement_date DATETIME NOT NULL,
+    description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (process_id) REFERENCES processes(id) ON DELETE CASCADE,
     FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE CASCADE,
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
+CREATE TRIGGER IF NOT EXISTS idx_financial_movements_updated_at AFTER UPDATE ON financial_movements
+BEGIN
+    UPDATE financial_movements SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;
 CREATE TRIGGER IF NOT EXISTS idx_clients_updated_at AFTER UPDATE ON clients
 BEGIN
     UPDATE clients SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
@@ -98,10 +101,6 @@ END;
 CREATE TRIGGER IF NOT EXISTS idx_processes_updated_at AFTER UPDATE ON processes
 BEGIN
     UPDATE processes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
-END;
-CREATE TRIGGER IF NOT EXISTS idx_payments_updated_at AFTER UPDATE ON payments
-BEGIN
-    UPDATE payments SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
 CREATE TRIGGER IF NOT EXISTS idx_office_expenses_updated_at AFTER UPDATE ON office_expenses
 BEGIN
@@ -118,13 +117,14 @@ CREATE INDEX IF NOT EXISTS idx_processes_client_id ON processes(client_id);
 CREATE INDEX IF NOT EXISTS idx_processes_status ON processes(status);
 CREATE INDEX IF NOT EXISTS idx_processes_deleted_at ON processes(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_processes_payment_method ON processes(payment_method);
-CREATE INDEX IF NOT EXISTS idx_payments_process_id ON payments(process_id);
-CREATE INDEX IF NOT EXISTS idx_payments_service_id ON payments(service_id);
-CREATE INDEX IF NOT EXISTS idx_payments_payment_date ON payments(payment_date);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
-CREATE INDEX IF NOT EXISTS idx_payments_due_date ON payments(due_date);
-CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
-CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_process_id ON financial_movements(process_id);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_service_id ON financial_movements(service_id);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_client_id ON financial_movements(client_id);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_type ON financial_movements(type);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_movement_date ON financial_movements(movement_date);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_status ON financial_movements(status);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_due_date ON financial_movements(due_date);
+CREATE INDEX IF NOT EXISTS idx_financial_movements_created_at ON financial_movements(created_at);
 CREATE INDEX IF NOT EXISTS idx_services_client_id ON services(client_id);
 CREATE INDEX IF NOT EXISTS idx_services_status ON services(status);
 CREATE INDEX IF NOT EXISTS idx_services_deleted_at ON services(deleted_at);
@@ -132,6 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_services_created_at ON services(created_at);
 CREATE INDEX IF NOT EXISTS idx_office_expenses_deleted_at ON office_expenses(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_office_expenses_status ON office_expenses(status);
 CREATE INDEX IF NOT EXISTS idx_office_expenses_due_date ON office_expenses(due_date);
+CREATE INDEX IF NOT EXISTS idx_offices_name ON offices(name);
+CREATE INDEX IF NOT EXISTS idx_offices_created_at ON offices(created_at);
 CREATE INDEX IF NOT EXISTS idx_users_office_id ON users(office_id);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

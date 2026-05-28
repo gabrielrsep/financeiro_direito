@@ -57,7 +57,6 @@ const savePayment = async () => {
                 client_id: props.clientId,
                 value_paid: valuePaid.value,
                 payment_date: paymentDate.value,
-                status: 'Pago'
             }
         })
         emit('saved')

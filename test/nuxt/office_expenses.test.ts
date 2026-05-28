@@ -1,6 +1,9 @@
 
 import { describe, it, expect } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
+import { db } from '~~/server/database/connection'
+
+const userLogeedIn = {'x-test-user': JSON.stringify({ id: 1, name: 'Test User', office_id: 29 })}
 
 describe('Office Expenses API', async () => {
     await setup({
@@ -9,11 +12,12 @@ describe('Office Expenses API', async () => {
 
   let createdExpenseId: number | null = null
 
+
   const testExpense = {
     description: 'Test Office Expense',
     amount: 150.50,
     due_date: new Date().toISOString(),
-    is_recurrent: false
+    is_recurrent: false,
   }
 
   const updatedExpense = {
@@ -24,6 +28,7 @@ describe('Office Expenses API', async () => {
   it('should create a new office expense', async () => {
     const response = await $fetch<any>('/api/office-expenses', {
       method: 'POST',
+      headers: userLogeedIn,
       body: testExpense
     })
 
@@ -40,7 +45,7 @@ describe('Office Expenses API', async () => {
         due_date: new Date().toISOString()
     }
     const response = await $fetch<any>('/api/office-expenses', {
-        method: 'POST', body: mandatoryExpense
+        method: 'POST', body: mandatoryExpense, headers: userLogeedIn
     })
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('id')
@@ -49,7 +54,7 @@ describe('Office Expenses API', async () => {
   it('should fail to create office expense without mandatory fields', async () => {
       try {
           await $fetch('/api/office-expenses', {
-              method: 'POST', body: { description: 'Only Description' }
+              method: 'POST', body: { description: 'Only Description' }, headers: userLogeedIn
           })
           throw new Error('Should have failed')
       } catch (error: any) {
@@ -58,8 +63,10 @@ describe('Office Expenses API', async () => {
   })
 
   it('should list office expenses', async () => {
-    const response = await $fetch<any>('/api/office-expenses')
-    
+    const response = await $fetch<any>('/api/office-expenses', {
+        headers: userLogeedIn
+    })
+
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
     expect(Array.isArray(response.data)).toBe(true)
@@ -71,7 +78,8 @@ describe('Office Expenses API', async () => {
 
     const response = await $fetch<any>(`/api/office-expenses/${createdExpenseId}`, {
       method: 'PATCH',
-      body: updatedExpense
+      body: updatedExpense,
+      headers: userLogeedIn
     })
 
     expect(response).toHaveProperty('success', true)
@@ -81,7 +89,8 @@ describe('Office Expenses API', async () => {
      if (!createdExpenseId) throw new Error('Expense not created')
 
      const response = await $fetch<any>(`/api/office-expenses/${createdExpenseId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: userLogeedIn
      })
 
      expect(response).toHaveProperty('success', true)

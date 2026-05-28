@@ -2,7 +2,8 @@ import { databaseArgs, db } from "~~/server/database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
-    const { id, process_id, service_id, client_id, value_paid, payment_date, status } = body;
+    const { process_id, service_id, client_id, value_paid, payment_date } = body;
+    let date: string | undefined = payment_date;
 
     if ((!process_id && !service_id && !client_id) || value_paid === undefined) {
         throw createError({
@@ -11,24 +12,18 @@ export default defineEventHandler(async (event) => {
         });
     }
 
+    if(!payment_date) {
+        date = new Date().toISOString();
+    }
     try {
         let lastId: number | string;
         
-        if (id) {
-            // Update existing payment
-             await db.execute({
-                sql: `UPDATE payments SET process_id = ?, service_id = ?, value_paid = ?, payment_date = ?, status = ? WHERE id = ?`,
-                args: [process_id, service_id, value_paid, payment_date, status || 'Pago', id]
-            })
-            lastId = id;
-        } else {
-             const result = await db.execute({
-                sql: `INSERT INTO payments (process_id, service_id, client_id, value_paid, payment_date, status) VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-                args: databaseArgs(process_id, service_id, client_id, value_paid, payment_date, status || 'Pago')
-            })
-            const row = result.rows[0];
-            lastId = Number(row.id);
-        }
+        const result = await db.execute({
+            sql: `INSERT INTO financial_movements (process_id, service_id, client_id, type, amount, movement_date) VALUES (?, ?, ?, 'payment', ?, ?) RETURNING id`,
+            args: databaseArgs(process_id, service_id, client_id, value_paid, date)
+        });
+        const row = result.rows[0];
+        lastId = Number(row.id);
 
         return {
             success: true,
@@ -38,12 +33,10 @@ export default defineEventHandler(async (event) => {
                 service_id,
                 client_id,
                 value_paid,
-                payment_date,
-                status
+                payment_date: date,
             },
         };
     } catch (error: any) {
-        console.error(error);
         throw createError({
             statusCode: 500,
             message: error.message,

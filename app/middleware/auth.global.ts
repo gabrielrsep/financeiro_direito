@@ -24,8 +24,10 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     return navigateTo('/')
   }
 
+  console.log(to.path, authStore.isAuthenticated, authStore.needsSetup)
+
   // Standard Auth logic
-  if (!authStore.isAuthenticated && to.path !== '/login' && to.path !== '/setup') {
+  if (!authStore.isAuthenticated && to.path !== '/login' && to.path !== '/setup' && to.path !== '/password-recovery' && to.path !== '/reset-password') {
     return navigateTo('/login')
   }
 

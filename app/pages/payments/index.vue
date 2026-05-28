@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { ChevronLeft, ChevronRight, X, Calendar, User, Undo2, Trash2 } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, X, Calendar, User, Undo2, Trash2, Plus } from 'lucide-vue-next'
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 import ConfirmModal from '~/components/ConfirmModal.vue'
+import ScheduleChargeModal from '~/components/ScheduleChargeModal.vue'
 
 useHead({
-    title: 'Histórico de Pagamentos'
+    title: 'Pagamentos e Agendamentos'
 })
 
 interface Client {
@@ -16,12 +17,15 @@ interface Client {
 
 interface Payment {
     id: number
+    amount: number
     value_paid: number
     payment_date: string
-    status: string
+    movement_date: string
     client_name: string
     process_number: string
+    service_description?: string
     created_at: string
+    type: string
 }
 
 interface ApiResponse {
@@ -42,39 +46,62 @@ const endDate = ref('')
 const selectedClientId = ref<string>('')
 const selectedClientName = ref('')
 const status = ref('')
+const activeTab = ref<'payments' | 'schedules'>('payments')
 
 const isClientModalOpen = ref(false)
 const showConfirmDelete = ref(false)
 const paymentToDelete = ref<number | null>(null)
 const isDeleting = ref(false)
+const isScheduleModalOpen = ref(false)
 
-const queryParams = computed(() => {
-    const params: any = {
+// Fetch payments
+const { data: paymentsData, refresh: refreshPayments } = await useFetch<ApiResponse>('/api/payments/history', {
+    params: computed(() => ({
         page: page.value,
-        limit: limit.value
-    }
-    if (startDate.value) params.startDate = startDate.value
-    if (endDate.value) params.endDate = endDate.value
-    if (selectedClientId.value) params.clientId = selectedClientId.value
-    if (status.value) params.status = status.value
-    return params
+        limit: limit.value,
+        ...(startDate.value && { startDate: startDate.value }),
+        ...(endDate.value && { endDate: endDate.value }),
+        ...(selectedClientId.value && { clientId: selectedClientId.value }),
+        ...(status.value && { status: status.value })
+    })),
+    watch: [page]
 })
 
-const { data, refresh } = await useFetch<ApiResponse>('/api/payments/history', {
-    params: queryParams,
-    watch: [page] // Auto refresh on page change
+// Fetch schedules
+const { data: schedulesData, refresh: refreshSchedules } = await useFetch<ApiResponse>('/api/schedules/history', {
+    params: computed(() => ({
+        page: page.value,
+        limit: limit.value,
+        ...(startDate.value && { startDate: startDate.value }),
+        ...(endDate.value && { endDate: endDate.value }),
+        ...(selectedClientId.value && { clientId: selectedClientId.value })
+    })),
+    watch: [page]
 })
 
-const payments = computed(() => data.value?.data || [])
-console.log(payments.value) // Debug: Check fetched payments;
+const currentData = computed(() => {
+    return activeTab.value === 'payments' ? paymentsData.value : schedulesData.value
+})
 
-const total = computed(() => data.value?.meta?.total || 0)
-const totalPages = computed(() => data.value?.meta?.totalPages || 1)
+const payments = computed(() => paymentsData.value?.data || [])
+const schedules = computed(() => schedulesData.value?.data || [])
+
+const total = computed(() => currentData.value?.meta?.total || 0)
+const totalPages = computed(() => currentData.value?.meta?.totalPages || 1)
 
 // Watch filters to reset page
 watch([startDate, endDate, selectedClientId, status], () => {
     page.value = 1
-    refresh() // Explicit refresh for filters
+    if (activeTab.value === 'payments') {
+        refreshPayments()
+    } else {
+        refreshSchedules()
+    }
+})
+
+// Watch tab change
+watch(activeTab, () => {
+    page.value = 1
 })
 
 const openClientModal = () => {
@@ -108,24 +135,29 @@ const confirmDelete = async () => {
 
     isDeleting.value = true
     try {
-        await $fetch('/api/payments', {
-            method: 'DELETE',
-            body: { id: paymentToDelete.value }
-        })
+
+        await $fetch(`/api/payments`, { method: 'DELETE', body: { id: paymentToDelete.value } })
         
-        // Show success toast (TODO: Use a proper toast system if available, but for now refresh is key)
-        // Since we don't have a global toast function exposed here easily without looking deeper, 
-        // effectively the UI update is the most important.
+        // Refresh the appropriate list
+        if (activeTab.value === 'payments') {
+            refreshPayments()
+        } else {
+            refreshSchedules()
+        }
         
-        refresh()
         showConfirmDelete.value = false
         paymentToDelete.value = null
     } catch (error) {
-        console.error('Failed to delete payment:', error)
-        // Ideally show error toast
+        console.error('Failed to delete:', error)
     } finally {
         isDeleting.value = false
     }
+}
+
+const handleScheduleCreated = () => {
+    isScheduleModalOpen.value = false
+    page.value = 1
+    refreshSchedules()
 }
 </script>
 
@@ -134,66 +166,100 @@ const confirmDelete = async () => {
         <!-- Header -->
         <div class="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
             <div>
-                <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Histórico de Pagamentos</h1>
-                <p class="text-slate-500 dark:text-slate-400 mt-1">Visualize todos os pagamentos recebidos.</p>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Pagamentos e Agendamentos</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-1">Gerencie pagamentos recebidos e agendamentos de cobranças.</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-t-lg shadow-sm transition-colors">
+            <div class="flex space-x-8 px-6">
+                <button 
+                    @click="activeTab = 'payments'"
+                    :class="[
+                        'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                        activeTab === 'payments'
+                            ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white'
+                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                    ]">
+                    Pagamentos Recebidos
+                </button>
+                <button 
+                    @click="activeTab = 'schedules'"
+                    :class="[
+                        'py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+                        activeTab === 'schedules'
+                            ? 'border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white'
+                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                    ]">
+                    Agendamentos
+                </button>
             </div>
         </div>
 
         <!-- Filters -->
         <div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors space-y-4">
-            <div class="flex flex-wrap items-center gap-4">
-                
-                <!-- Date Range -->
-                <div class="flex items-center space-x-2">
-                    <div class="relative">
-                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Calendar class="h-4 w-4 text-slate-400" />
+            <div class="flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- Date Range -->
+                    <div class="flex items-center space-x-2">
+                        <div class="relative">
+                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Calendar class="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input type="date" v-model="startDate" 
+                                class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
+                                placeholder="Data Inicial" />
                         </div>
-                        <input type="date" v-model="startDate" 
-                            class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
-                            placeholder="Data Inicial" />
-                    </div>
-                    <span class="text-slate-400">-</span>
-                    <div class="relative">
-                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Calendar class="h-4 w-4 text-slate-400" />
+                        <span class="text-slate-400">-</span>
+                        <div class="relative">
+                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Calendar class="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input type="date" v-model="endDate" 
+                                class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
+                                placeholder="Data Final" />
                         </div>
-                        <input type="date" v-model="endDate" 
-                            class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
-                            placeholder="Data Final" />
                     </div>
-                </div>
 
-                <!-- Client Filter -->
-                <div class="relative flex items-center">
-                    <button @click="openClientModal" 
-                        class="flex items-center h-9 px-3 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent text-sm shadow-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white min-w-[200px] justify-between">
-                        <span v-if="selectedClientName" class="truncate max-w-[180px]">{{ selectedClientName }}</span>
-                        <span v-else class="text-slate-500 dark:text-slate-400 flex items-center">
-                            <User class="h-4 w-4 mr-2" />
-                            Filtrar por Cliente
-                        </span>
+                    <!-- Client Filter -->
+                    <div class="relative flex items-center">
+                        <button @click="openClientModal" 
+                            class="flex items-center h-9 px-3 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent text-sm shadow-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white min-w-[200px] justify-between">
+                            <span v-if="selectedClientName" class="truncate max-w-[180px]">{{ selectedClientName }}</span>
+                            <span v-else class="text-slate-500 dark:text-slate-400 flex items-center">
+                                <User class="h-4 w-4 mr-2" />
+                                Filtrar por Cliente
+                            </span>
+                        </button>
+                        <button v-if="selectedClientId" @click="clearClientFilter" class="ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                            <X class="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <!-- Status Filter (Payments only) -->
+                    <div v-if="activeTab === 'payments'" class="relative">
+                        <select v-model="status" 
+                            class="flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white min-w-[150px]">
+                            <option value="">Todos os Status</option>
+                            <option value="Pago">Pago</option>
+                            <option value="Pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <button v-if="startDate || endDate || selectedClientId || status" @click="clearFilters" 
+                        class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors flex items-center">
+                        <X class="h-4 w-4 mr-1" />
+                        Limpar Filtros
                     </button>
-                    <button v-if="selectedClientId" @click="clearClientFilter" class="ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
-                        <X class="h-4 w-4" />
-                    </button>
                 </div>
 
-                <!-- Status Filter -->
-                <div class="relative">
-                    <select v-model="status" 
-                        class="flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white min-w-[150px]">
-                        <option value="">Todos os Status</option>
-                        <option value="Pago">Pago</option>
-                        <option value="Pendente">Pendente</option>
-                    </select>
-                </div>
-
-                <!-- Clear Filters -->
-                <button v-if="startDate || endDate || selectedClientId || status" @click="clearFilters" 
-                    class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors flex items-center ml-auto md:ml-0">
-                    <X class="h-4 w-4 mr-1" />
-                    Limpar Filtros
+                <!-- New Schedule Button (Schedules tab only) -->
+                <button v-if="activeTab === 'schedules'" @click="isScheduleModalOpen = true"
+                    class="flex items-center gap-2 h-9 px-4 rounded-md bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 font-medium text-sm shadow-sm transition-colors">
+                    <Plus class="h-4 w-4" />
+                    Novo Agendamento
                 </button>
             </div>
         </div>
@@ -201,14 +267,13 @@ const confirmDelete = async () => {
         <!-- Table -->
         <div class="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
             <div class="w-full overflow-auto">
-                <table class="w-full text-sm text-left">
+                <!-- Payments Table -->
+                <table v-if="activeTab === 'payments'" class="w-full text-sm text-left">
                     <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
                         <tr>
                             <th class="h-10 px-4 align-middle">Data</th>
-                            <th class="h-10 px-4 align-middle">Cliente</th>
-                            <th class="h-10 px-4 align-middle">Processo</th>
+                            <th class="h-10 px-4 align-middle">Cliente/Processo/Serviço</th>
                             <th class="h-10 px-4 align-middle">Valor</th>
-                            <th class="h-10 px-4 align-middle">Status</th>
                             <th class="h-10 px-4 align-middle w-[50px]"></th>
                         </tr>
                     </thead>
@@ -219,34 +284,66 @@ const confirmDelete = async () => {
                                 {{ formatDate(payment.created_at) }}
                             </td>
                             <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">
-                                {{ payment.client_name }}
-                            </td>
-                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                {{ payment.process_number || '-' }}
+                                <span v-if="payment.client_name">Cliente: {{ payment.client_name }}</span>
+                                <span v-else-if="payment.process_number">Processo: {{ payment.process_number }}</span>
+                                <span v-else="payment.service_description">Serviço: {{ payment.service_description}}</span>
                             </td>
                             <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">
                                 {{ formatCurrency(payment.value_paid) }}
                             </td>
-                            <td class="p-4 align-middle">
-                                <span :class="{
-                                    'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400': payment.status === 'Pago',
-                                    'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400': payment.status === 'Pendente'
-                                }" class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors">
-                                    {{ payment.status }}
-                                </span>
-                            </td>
                             <td class="p-4 align-middle text-right">
                                 <button @click="handleDeleteClick(payment.id)" 
                                     class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    :title="payment.status === 'Pendente' ? 'Excluir Pagamento' : 'Desfazer Pagamento'">
-                                    <Trash2 v-if="payment.status === 'Pendente'" class="h-4 w-4" />
-                                    <Undo2 v-else class="h-4 w-4" />
+                                    title="Desfazer pagamento">
+                                    <Undo2 class="h-4 w-4" />
                                 </button>
                             </td>
                         </tr>
                         <tr v-if="payments.length === 0">
                             <td colspan="6" class="h-24 text-center text-slate-500 dark:text-slate-400">
                                 Nenhum pagamento encontrado.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Schedules Table -->
+                <table v-else class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                            <th class="h-10 px-4 align-middle">Data Agendamento</th>
+                            <th class="h-10 px-4 align-middle">Processo/Serviço/Cliente</th>
+                            <th class="h-10 px-4 align-middle">Valor</th>
+                            <th class="h-10 px-4 align-middle">Descrição</th>
+                            <th class="h-10 px-4 align-middle w-[50px]"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tr v-for="schedule in schedules" :key="schedule.id"
+                            class="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                                {{ formatDate(schedule.movement_date) }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                                {{ schedule.client_name || schedule.process_number || schedule.service_description || '-' }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">
+                                {{ formatCurrency(schedule.amount) }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400 text-xs">
+                                {{ schedule.description || '-' }}
+                            </td>
+                            <td class="p-4 align-middle text-right">
+                                <button @click="handleDeleteClick(schedule.id)" 
+                                    class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    title="Excluir Agendamento">
+                                    <Trash2 class="h-4 w-4" />
+                                </button>
+                            </td>
+                        </tr>
+                        <tr v-if="schedules.length === 0">
+                            <td colspan="6" class="h-24 text-center text-slate-500 dark:text-slate-400">
+                                Nenhum agendamento encontrado.
                             </td>
                         </tr>
                     </tbody>
@@ -283,13 +380,21 @@ const confirmDelete = async () => {
 
         <ConfirmModal
             :isOpen="showConfirmDelete"
-            title="Desfazer Pagamento"
-            message="Tem certeza que deseja desfazer este pagamento? Esta ação removerá o registro permanentemente do histórico."
-            confirmLabel="Sim, desfazer"
+            :title="activeTab === 'payments' ? 'Desfazer Pagamento' : 'Excluir Agendamento'"
+            :message="activeTab === 'payments' 
+                ? 'Tem certeza que deseja desfazer este pagamento? Esta ação removerá o registro permanentemente do histórico.'
+                : 'Tem certeza que deseja excluir este agendamento? Esta ação não pode ser revertida.'"
+            confirmLabel="Confirmar exclusão"
             cancelLabel="Cancelar"
             variant="danger"
             @close="showConfirmDelete = false"
             @confirm="confirmDelete"
+        />
+
+        <ScheduleChargeModal
+            :isOpen="isScheduleModalOpen"
+            @close="isScheduleModalOpen = false"
+            @created="handleScheduleCreated"
         />
     </div>
 </template>

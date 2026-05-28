@@ -343,6 +343,7 @@ const confirmDeleteProcess = async () => {
                     </p>
                 </div>
 
+
                 <div class="p-6 space-y-4 flex-1 overflow-y-auto overscroll-contain">
                     <div class="grid gap-2">
                         <label class="text-sm font-bold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-900 dark:text-white">
@@ -420,9 +421,37 @@ const confirmDeleteProcess = async () => {
                         </div>
                     </div>
 
-                    <span v-if="currentProcess.payment_method === 'em_conta' && currentProcess.em_conta_details" class="block mt-2 text-sm text-slate-700 dark:text-slate-300 font-bold">
-                        {{ formatPaymentDetails(currentProcess.em_conta_details) }}
-                    </span>
+                    <!-- Installments Section (Show in Create Mode if payment_method is em_conta) -->
+                    <div v-if="currentProcess.payment_method === 'em_conta' && !isEditing && currentProcess.installments" class="space-y-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
+                        <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Detalhes do Parcelamento</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="grid gap-2">
+                                <label for="down_payment" class="text-xs font-medium text-slate-500 dark:text-slate-400">Entrada (Opcional)</label>
+                                <input id="down_payment" type="number" v-model="currentProcess.installments!.down_payment"
+                                    class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
+                            </div>
+                            <div class="grid gap-2">
+                                <label for="installments_count" class="text-xs font-medium text-slate-500 dark:text-slate-400">Nº de Parcelas</label>
+                                <input id="installments_count" type="number" v-model="currentProcess.installments!.count" min="1"
+                                    class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
+                            </div>
+                        </div>
+                        <div v-if="!isEditing" class="grid gap-2">
+                            <label for="first_due_date" class="text-xs font-medium text-slate-500 dark:text-slate-400">Vencimento da 1ª Parcela</label>
+                            <input id="first_due_date" type="date" v-model="currentProcess.installments!.first_due_date"
+                                class="flex h-8 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" />
+                        </div>
+                        <div v-else class="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+                            <p><span class="font-medium">Entrada:</span> {{ formatCurrency(currentProcess.installments!.down_payment || 0) }}</p>
+                            <p><span class="font-medium">Número de Parcelas:</span> {{ currentProcess.installments!.count }}</p>
+                            <p><span class="font-medium">Vencimento da 1ª Parcela:</span> {{ new Date(currentProcess.installments!.first_due_date).toLocaleDateString('pt-BR') }}</p>
+                        </div>
+                        <div class="text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700 pt-2">
+                            <p v-if="currentProcess.installments!.count > 0">
+                                Valor por parcela: <span class="font-bold text-slate-900 dark:text-white">{{ formatCurrency((currentProcess.value_charged - (currentProcess.installments!.down_payment || 0)) / currentProcess.installments!.count) }}</span>
+                            </p>
+                        </div>
+                    </div>
 
                     <div class="grid gap-2">
                         <label for="description"

@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
 
   // 2. Find User
   const users = await db.execute({
-    sql: "SELECT u.*, o.name as office_name FROM users u JOIN offices o ON u.office_id = o.id WHERE u.username = ? OR u.email = ?",
+    sql: "SELECT u.* FROM users u WHERE u.username = ? OR u.email = ?",
     args: [identifier, identifier],
   });
 
