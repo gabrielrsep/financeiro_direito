@@ -90,7 +90,7 @@ useHead({
 
         <div v-else-if="error || !client" class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-8 rounded-lg text-center">
             <h2 class="text-xl font-bold text-red-800 dark:text-red-400 mb-2">Erro ao carregar cliente</h2>
-            <p class="text-red-600 dark:text-red-300">{{ error?.statusMessage || 'Cliente não encontrado no sistema.' }}</p>
+            <p class="text-red-600 dark:text-red-300">{{ error?.message || 'Cliente não encontrado no sistema.' }}</p>
             <NuxtLink to="/clients" class="mt-4 inline-block text-sm font-medium underline">Retornar à lista</NuxtLink>
         </div>
 

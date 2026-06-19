@@ -23,11 +23,12 @@ logs
 .env.*
 !.env.example
 
-server/database/**/*.sqlite
-server/database/**/*.sql
 .vercel
 .env*.local
 server/storage
-server/database/db.sqlite-shm
-server/database/test.db
-server/database/db.sqlite-wal
+.nuxtrc
+bkf
+direitodaniel.db
+.nuxtrc
+direitodaniel.db-shm
+direitodaniel.db-wal

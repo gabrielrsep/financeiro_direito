@@ -1,9 +1,8 @@
-import { db } from '~~/server/database/connection'
+import { neonClient as sql } from '~~/server/database/connection'
 import bcrypt from 'bcrypt'
 import { validCredentials } from '~~/server/util/validation/http'
 import { findFormDataValue, getFormDataValue, uploadFile } from '~~/server/util/upload'
 import { devLogger } from '~~/server/util/logger'
-import { getUser } from '~~/server/util/auth'
 
 export default defineEventHandler(async (event) => {
 
@@ -11,17 +10,14 @@ export default defineEventHandler(async (event) => {
   if (!officeId) {
     throw createError({ statusCode: 400, message: 'ID do escritório inválido.' })
   }
-  const user = await getUser(event)
-  if(user?.office_id !== officeId) {
-    throw createError({ statusCode: 403, message: 'Você não tem permissão para adicionar usuários a este escritório.' })
+  const { user } = await getUserSession(event)
+  if(user!.office_id) {
+    throw createError({ statusCode: 403, message: 'Você precisa ser administrador para adicionar usuários a outros escritórios.' })
   }
 
-  const officeResult = await db.execute({
-    sql: 'SELECT id FROM offices WHERE id = ?',
-    args: [officeId],
-  })
+  const officeResult = await sql`SELECT id FROM offices WHERE id = ${officeId}`
 
-  if (officeResult.rows.length === 0) {
+  if (officeResult.length === 0) {
     throw createError({ statusCode: 404, message: 'Escritório não encontrado.' })
   }
 
@@ -54,24 +50,20 @@ export default defineEventHandler(async (event) => {
 
   validCredentials({ username, email, password })
 
-  const existingUser = await db.execute({
-    sql: 'SELECT id FROM users WHERE username = ? OR email = ?',
-    args: [username, email],
-  })
+  const existingUser = await sql`
+    SELECT id FROM users
+    WHERE (lower(username) = lower(${username})) OR (lower(email) = lower(${email}) AND office_id = ${user!.office_id})`
 
-  if (existingUser.rows.length > 0) {
+  if (existingUser.length > 0) {
     throw createError({ statusCode: 409, message: 'Usuário ou email já cadastrado.' })
   }
 
   const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12))
 
   try {
-    const result = await db.execute({
-      sql: 'INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)',
-      args: [officeId, name, username, email, hashedPassword],
-    })
+    const result = await sql`INSERT INTO users (office_id, name, username, email, password) VALUES (${officeId}, ${name}, ${username}, ${email}, ${hashedPassword}) RETURNING id`
 
-    const userId = Number(result.lastInsertRowid)
+    const userId = Number(result[0]!.id)
     let avatarUrl: string | null = null
 
     if (avatar && body) {
@@ -80,10 +72,7 @@ export default defineEventHandler(async (event) => {
         fileSize: 1024 * 1024 * 2,
       })
       avatarUrl = blob.url as string
-      await db.execute({
-        sql: 'UPDATE users SET avatar_url = ? WHERE id = ?',
-        args: [avatarUrl, userId],
-      })
+      await sql`UPDATE users SET avatar_url = ${avatarUrl} WHERE id = ${userId}`
     }
 
     return {

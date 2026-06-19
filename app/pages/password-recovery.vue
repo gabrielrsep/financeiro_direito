@@ -227,7 +227,7 @@ const handleSubmit = async (): Promise<void> => {
       remainingSeconds.value = 60;
       errorMessage.value = 'Muitas tentativas. Por favor, aguarde 60 segundos antes de tentar novamente.';
     } else if (statusCode === 400) {
-      errorMessage.value = error.data?.statusMessage || 'Email é obrigatório';
+      errorMessage.value = error.data?.message || 'Email é obrigatório';
     } else {
       errorMessage.value = 'Erro ao enviar link de recuperação. Tente novamente.';
     }

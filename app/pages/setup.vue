@@ -9,7 +9,8 @@ useHead({
   title: 'Primeiro Acesso'
 })
 
-const authStore = useAuthStore()
+const { fetch: refreshSession } = useUserSession()
+
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -45,16 +46,15 @@ async function handleSetup() {
     })
 
     if (data.success) {
+      await refreshSession()
       successMessage.value = 'Sistema configurado com sucesso! Redirecionando...'
-      authStore.user = data.user
-      authStore.needsSetup = false
-      
+
       setTimeout(() => {
         navigateTo('/')
       }, 2000)
     }
   } catch (error: any) {
-    errorMessage.value = error.data?.statusMessage || 'Ocorreu um erro ao configurar o sistema.'
+    errorMessage.value = error.data?.message || 'Ocorreu um erro ao configurar o sistema.'
   } finally {
     loading.value = false
   }

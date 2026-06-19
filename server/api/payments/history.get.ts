@@ -1,55 +1,87 @@
-import { getUser } from "~~/server/util/auth";
-import { db } from "../../database/connection";
+import { neonClient, replaceQuestionMarks } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
+
+    // paginação
     const page = parseInt(query.page as string) || 1;
     const limit = parseInt(query.limit as string) || 10;
     const offset = (page - 1) * limit;
 
+
     const startDate = query.startDate as string;
     const endDate = query.endDate as string;
-    const clientId = query.clientId as string;
-    const status = query.status as string;
+    const month = query.month as string
+    const year = query.year as string
 
-    const { office_id: officeId } = await getUser(event)!;
+    const type = query.type as 'charge' | 'payment'
 
-    try {
-        let whereConditions: string[] = [
-            "fm.type = 'payment'",
-            "(s.office_id = ? OR p.office_id = ? OR c.office_id = ?)"
-        ];
-        let params: any[] = [officeId, officeId, officeId];
 
+
+    const { user } = await getUserSession(event)!;
+    const officeId = user!.office_id
+
+    const whereConditions: string[] = [
+        "fm.office_id = ?"
+    ];
+    const params: any[] = [officeId];
+
+    if(!type || type !== 'charge' && type !== 'payment') {
+        return createError({
+            status: 400,
+            message: "'type' parameter is required and only can be 'charge' or 'payment'"
+        })
+    }
+
+    whereConditions.push("fm.type = ?")
+    params.push(type)
+
+    if(month && year) {
+        const m = Number(month) < 10 ? '0' + month : month
+        // Maior ou igual ao primeiro dia do mês corrente
+        whereConditions.push("fm.movement_date >= make_date(?,?,1)");
+        params.push(year.toString(), m);
+
+        // Menor que o primeiro dia do próximo mês
+        whereConditions.push("fm.movement_date < make_date(?,?,1) + interval '1 month'");
+        params.push(year.toString(), m);
+    } else if(month || year) {
+        throw createError({
+            status: 400,
+            message: "you need to specify 'month' and 'year' parameter."
+        })
+    } else {
         if (startDate) {
             whereConditions.push("fm.movement_date >= ?");
             params.push(startDate);
         }
         if (endDate) {
             whereConditions.push("fm.movement_date <= ?");
-            if (endDate.length === 10) {
-                 params.push(endDate + ' 23:59:59');
-            } else {
-                 params.push(endDate);
-            }
+            params.push(endDate.length === 10 ? `${endDate} 23:59:59` : endDate);
         }
-        if (clientId) {
-            whereConditions.push("fm.client_id = ?");
-            params.push(clientId);
-        }
-        if (status) {
-            whereConditions.push("fm.status = ?");
-            params.push(status);
-        }
-        
-        const whereClause = whereConditions.length > 0 ? " WHERE " + whereConditions.join(" AND ") : "";
+    }
+
+    if (query.clientId) {
+        whereConditions.push("fm.client_id = ?");
+        params.push(query.clientId);
+    } else if(query.processId) {
+        whereConditions.push("fm.process_id = ?");
+        params.push(query.processId);
+    } else if(query.serviceId) {
+        whereConditions.push("fm.service_id = ?");
+        params.push(query.serviceId);
+    }
+
+    let whereClause = ''
+    if(whereConditions.length > 0) {
+        whereClause += " WHERE " + whereConditions.join(" AND ")
+    }
+
+    try {
 
         const countSql = `
             SELECT COUNT(*) as total 
             FROM financial_movements fm
-            LEFT JOIN services s ON s.id = fm.service_id
-            LEFT JOIN processes p ON fm.process_id = p.id
-            LEFT JOIN clients c ON fm.client_id = c.id
             ${whereClause}
         `;
         const dataSql = `
@@ -70,17 +102,11 @@ export default defineEventHandler(async (event) => {
             LIMIT ? OFFSET ?
         `;
 
-        const countResult = await db.execute({
-            sql: countSql,
-            args: params
-        });
-        const total = countResult.rows[0] ? Number(countResult.rows[0].total) : 0;
+        const countResult = await neonClient.query(replaceQuestionMarks(countSql), params)
+        
+        const total = countResult[0] ? Number(countResult[0].total) : 0;
 
-        const dataResult = await db.execute({
-            sql: dataSql,
-            args: [...params, limit, offset]
-        });
-        const payments = dataResult.rows;
+        const payments = await neonClient.query(replaceQuestionMarks(dataSql), [...params, limit, offset]);
 
         const totalPages = Math.ceil(total / limit);
 

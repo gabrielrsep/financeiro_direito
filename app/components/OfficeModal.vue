@@ -49,7 +49,7 @@ const saveOffice = async () => {
     emit('saved')
     closeModal()
   } catch (error: any) {
-    toastStore.error(error.message || 'Erro ao salvar o escritório.', true)
+    toastStore.error(error.data.message || 'Erro ao salvar o escritório.', true)
   }
 }
 </script>

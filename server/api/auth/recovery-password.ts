@@ -1,4 +1,4 @@
-import { db } from "~~/server/database/connection";
+import { neonClient } from "~~/server/database/connection";
 import { Resend } from "resend";
 import { nanoid } from 'nanoid'
 
@@ -14,14 +14,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // ===== RATE LIMITING: Check for recent attempts (60 seconds) =====
-    const recentAttempt = await db.execute({
-        sql: `SELECT id FROM password_recovery_attempts 
-              WHERE email = ? AND datetime(attempted_at) > datetime('now', '-60 seconds')
-              LIMIT 1`,
-        args: [email.toLowerCase()]
-    });
+    const recentAttempt = await neonClient`SELECT id FROM password_recovery_attempts 
+              WHERE email = ${email.toLowerCase()} AND attempted_at > CURRENT_TIMESTAMP - INTERVAL '60 SECOND'
+              LIMIT 1`;
 
-    if (recentAttempt.rows.length > 0) {
+    if (recentAttempt.length > 0) {
         throw createError({
             statusCode: 429,
             message: "Too many requests. Please try again later.",
@@ -29,42 +26,26 @@ export default defineEventHandler(async (event) => {
     }
 
     // ===== Verify user exists =====
-    const result = await db.execute({
-        sql: "SELECT id FROM users WHERE LOWER(email) = LOWER(?)",
-        args: [email]
-    });
+    const result = await neonClient`SELECT id FROM users WHERE LOWER(email) = LOWER(${email})`;
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
         throw createError({
             statusCode: 404,
             message: "User not found",
         });
     }
 
-    const trx = await db.transaction()
-    // ===== Log the recovery attempt (for rate limiting) =====
-    await trx.execute({
-        sql: `INSERT INTO password_recovery_attempts (email, attempted_at) VALUES (?, datetime('now'))`,
-        args: [email.toLowerCase()]
-    });
-
-    // ===== Cleanup old attempts (older than 24 hours) =====
-    await trx.execute({
-        sql: `DELETE FROM password_recovery_attempts 
-              WHERE datetime(created_at) < datetime('now', '-24 hours')`
-    });
-
-    const resend = new Resend(process.env.RESEND_API_KEY!);
     const host = event.node.req.headers.host;
     const token = nanoid();
+    const resend = new Resend(process.env.RESEND_API_KEY!);
 
-    // ===== Create recovery token =====
-    await trx.execute({
-        sql: `INSERT INTO password_recovery_tokens (user_id, token, expires_at) 
-              VALUES (?, ?, datetime('now', '+1 hour'))`,
-        args: [result.rows[0]!.id as string, token]
-    });
-    await trx.commit()
+    // 
+    await neonClient.transaction([
+        neonClient`INSERT INTO password_recovery_attempts (email, attempted_at) VALUES (${email.toLowerCase()}, CURRENT_TIMESTAMP)`,
+        neonClient`DELETE FROM password_recovery_attempts WHERE attempted_at < CURRENT_TIMESTAMP - INTERVAL '24 HOUR'`,
+        neonClient`INSERT INTO password_recovery_tokens (user_id, token, expires_at) ,
+              VALUES (${result[0]!.id as string}, ${token}, CURRENT_TIMESTAMP + INTERVAL '1 HOUR')`,
+    ]);
 
     if(process.env.VITEST) {
         return {

@@ -1,7 +1,7 @@
 
+import { setup, $fetch } from '@nuxt/test-utils'
 import { describe, it, expect } from 'vitest'
-import { $fetch, setup } from '@nuxt/test-utils/e2e'
-import { db } from '~~/server/database/connection'
+import { getAuthCookie, setCurrentUser } from '../util'
 
 describe('Clients API', async () => {
     await setup({
@@ -11,11 +11,13 @@ describe('Clients API', async () => {
 
   let createdClientId: number | null = null
 
-    const testLoggedInUser = { 'x-test-user': JSON.stringify({ id: 1, office_id: 1 }) }
+  setCurrentUser({ office_id: 1, id: 1 })
+
+  const document = '12345678901' + Date.now()
 
   const testClient = {
     name: 'Test Client',
-    document: '12345678901',
+    document: document,
     contact: 'test@example.com',
     address: 'Test Address',
     office_id: 1
@@ -23,16 +25,16 @@ describe('Clients API', async () => {
 
   const updatedClient = {
     name: 'Updated Test Client',
-    document: '12345678901', // Keep document same as it is unique
+    document: document, // Keep document same as it is unique
     contact: 'updated@example.com',
     address: 'Updated Address'
   }
 
   it('should create a new client', async () => {
-    const response = await $fetch<any>('/api/clients', {
+    const response = await $fetch('/api/clients', {
       method: 'POST',
       body: testClient,
-      headers: testLoggedInUser
+      headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -51,7 +53,7 @@ describe('Clients API', async () => {
        document: `999${timestamp.toString().slice(-8)}`,
     }
     const response = await $fetch<any>('/api/clients', {
-       method: 'POST', body: mandatoryClient, headers: testLoggedInUser
+       method: 'POST', body: mandatoryClient, headers: await getAuthCookie()
     })
      expect(response).toHaveProperty('success', true)
      expect(response.data).toHaveProperty('name', mandatoryClient.name)
@@ -62,7 +64,7 @@ describe('Clients API', async () => {
   it('should fail to create client without mandatory fields', async () => {
       try {
         await $fetch('/api/clients', {
-            method: 'POST', body: { name: 'No Document' }, headers: testLoggedInUser
+            method: 'POST', body: { name: 'No Document' }, headers: await getAuthCookie()
         })
         throw new Error('Should have failed')
       } catch (error: any) {
@@ -72,7 +74,7 @@ describe('Clients API', async () => {
   })
 
   it('should list clients', async () => {
-    const response = await $fetch<any>('/api/clients', { headers: testLoggedInUser })
+    const response = await $fetch<any>('/api/clients', { headers: await getAuthCookie() })
     
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
@@ -82,7 +84,7 @@ describe('Clients API', async () => {
   it('should get a specific client', async () => {
     if (!createdClientId) throw new Error('Client not created')
 
-    const response = await $fetch<any>(`/api/clients/${createdClientId}`, { headers: testLoggedInUser })
+    const response = await $fetch<any>(`/api/clients/${createdClientId}`, { headers: await getAuthCookie() })
     
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
@@ -96,7 +98,7 @@ describe('Clients API', async () => {
     const response = await $fetch<any>(`/api/clients/${createdClientId}`, {
       method: 'PUT',
       body: updatedClient,
-      headers: testLoggedInUser
+      headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -110,7 +112,7 @@ describe('Clients API', async () => {
 
      const response = await $fetch<any>(`/api/clients/${createdClientId}`, {
         method: 'DELETE',
-        headers: testLoggedInUser
+        headers: await getAuthCookie()
      })
 
      expect(response).toHaveProperty('success', true)
@@ -125,7 +127,7 @@ describe('Clients API', async () => {
       // Let's check how GET /api/clients/[id] behaves.
       
       try {
-         await $fetch(`/api/clients/${createdClientId}`, { headers: testLoggedInUser })
+         await $fetch(`/api/clients/${createdClientId}`, { headers: await getAuthCookie() })
           // If it returns success even for deleted (soft delete), we check properties
           // But usually GET by ID should return 404 if "logically" deleted
       } catch (error: any) {

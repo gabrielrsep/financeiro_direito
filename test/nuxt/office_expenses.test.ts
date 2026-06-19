@@ -1,9 +1,9 @@
 
 import { describe, it, expect } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
-import { db } from '~~/server/database/connection'
+import { getAuthCookie, setCurrentUser } from '../util'
 
-const userLogeedIn = {'x-test-user': JSON.stringify({ id: 1, name: 'Test User', office_id: 29 })}
+const userLogeedIn = {'x-test-user': JSON.stringify({ id: 1, name: 'Test User', office_id: 1 })}
 
 describe('Office Expenses API', async () => {
     await setup({
@@ -25,10 +25,12 @@ describe('Office Expenses API', async () => {
     amount: 200.00
   }
 
+   setCurrentUser({ office_id: 1, id: 1 })
+
   it('should create a new office expense', async () => {
     const response = await $fetch<any>('/api/office-expenses', {
       method: 'POST',
-      headers: userLogeedIn,
+      headers: await getAuthCookie(),
       body: testExpense
     })
 
@@ -45,7 +47,7 @@ describe('Office Expenses API', async () => {
         due_date: new Date().toISOString()
     }
     const response = await $fetch<any>('/api/office-expenses', {
-        method: 'POST', body: mandatoryExpense, headers: userLogeedIn
+        method: 'POST', body: mandatoryExpense, headers: await getAuthCookie()
     })
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('id')
@@ -54,7 +56,7 @@ describe('Office Expenses API', async () => {
   it('should fail to create office expense without mandatory fields', async () => {
       try {
           await $fetch('/api/office-expenses', {
-              method: 'POST', body: { description: 'Only Description' }, headers: userLogeedIn
+              method: 'POST', body: { description: 'Only Description' }, headers: await getAuthCookie()
           })
           throw new Error('Should have failed')
       } catch (error: any) {
@@ -64,7 +66,7 @@ describe('Office Expenses API', async () => {
 
   it('should list office expenses', async () => {
     const response = await $fetch<any>('/api/office-expenses', {
-        headers: userLogeedIn
+        headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -79,7 +81,7 @@ describe('Office Expenses API', async () => {
     const response = await $fetch<any>(`/api/office-expenses/${createdExpenseId}`, {
       method: 'PATCH',
       body: updatedExpense,
-      headers: userLogeedIn
+      headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -90,7 +92,7 @@ describe('Office Expenses API', async () => {
 
      const response = await $fetch<any>(`/api/office-expenses/${createdExpenseId}`, {
         method: 'DELETE',
-        headers: userLogeedIn
+        headers: await getAuthCookie()
      })
 
      expect(response).toHaveProperty('success', true)

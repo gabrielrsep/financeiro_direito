@@ -1,9 +1,10 @@
-import { db } from "../../database/connection";
+import { neonClient } from "../../database/connection";
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async () => {
   try {
-    const result = await db.execute("SELECT COUNT(*) as count FROM users");
-    const count = Number(result.rows[0]?.count || 0);
+
+    const result = await neonClient`SELECT COUNT(*) as count FROM users`;
+    const count = Number(result[0]?.count || 0);
 
     return {
       needsSetup: count === 0

@@ -1,25 +1,34 @@
-import { createClient, type Client } from "@libsql/client";
+import { neon } from '@neondatabase/serverless'
 
-const { DATABASE_URL, DATABASE_AUTH_TOKEN } = process.env;
+const { DATABASE_URL } = process.env;
 
-let db: Client
 
-db = createClient({
-    url: DATABASE_URL!,
-    authToken: DATABASE_AUTH_TOKEN,
-    
-})
+const neonClient = neon(DATABASE_URL!);
 
-export function databaseArgs(...args: any[]) {
-    const newArgs = args.flat()
-    for (let i = 0; i < newArgs.length; i++) {
-        if (newArgs[i] === undefined) {
-            newArgs[i] = null
-        }
+export function databaseArg(arg: any) {
+    if(arg === undefined) {
+        return null;
     }
-    return newArgs
+    return arg;
 }
 
-export { db };
+export function replaceQuestionMarks(sql: string) {
+    let index = 0;
+    return sql.replace(/\?/g, () => {
+        index++;
+        return `$${index}`;
+    });
+}
+
+export function repeatParms(n: number) {
+    const arr = []
+    for(let i = 0; i < n; i++) {
+        arr.push('$' + (i + 1))
+    }
+    return arr.join(',')
+}
+
+
+export { neonClient };
 
 

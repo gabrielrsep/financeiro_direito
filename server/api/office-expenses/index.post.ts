@@ -1,11 +1,11 @@
 import { getUser } from "~~/server/util/auth";
-import { db } from "../../database/connection";
+import { neonClient as sql } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const body = await readBody(event);
     const { description, amount, due_date, is_recurrent } = body;
 
-    const user = await getUser(event);
+    const { user } = await getUserSession(event);
 
     if (!description || !amount || !due_date) {
         throw createError({
@@ -15,22 +15,19 @@ export default defineEventHandler(async (event) => {
     }
 
     try {
-        const result = await db.execute({
-            sql: `
+        const result = await sql`
                 INSERT INTO office_expenses (office_id, description, amount, due_date, is_recurrent)
-                VALUES (?, ?, ?, ?, ?)
-            `,
-            args: [user!.office_id, description, amount, due_date, is_recurrent ? 1 : 0]
-        });
+                VALUES (${user!.office_id}, ${description}, ${amount}, ${due_date}, ${!!is_recurrent}) RETURNING id
+            `;
 
         return {
             success: true,
-            id: Number(result.lastInsertRowid)
+            id: Number(result[0]?.id)
         };
     } catch (error: any) {
         throw createError({
             statusCode: 500,
-            statusMessage: error.message,
+            message: error.message,
         });
     }
 });

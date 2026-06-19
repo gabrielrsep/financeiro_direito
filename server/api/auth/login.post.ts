@@ -1,12 +1,17 @@
-import { devLogger } from "~~/server/util/logger";
-import { db } from "../../database/connection";
+import { neonClient } from "../../database/connection";
 import bcrypt from "bcrypt";
 
-export default defineEventHandler(async (event) => {
-  const body = await readBody(event);
-  const { identifier, password } = body;
-  const ipAddress = getRequestIP(event) || '0.0.0.0';
 
+type LoginRequestBody = {
+  identifier: string; // Can be username or email
+  password: string;
+};
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody(event) as LoginRequestBody;
+  const { identifier, password } = body;
+  const ipAddress = getRequestIP(event, { xForwardedFor: true }) || '0.0.0.0';
+  
   if (!identifier || !password) {
     throw createError({
       statusCode: 400,
@@ -14,19 +19,19 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const lowerIdentifier = identifier.toLowerCase();
+
   // 1. Check Rate Limiting
-  const loginAttempts = await db.execute({
-    sql: "SELECT * FROM login_attempts WHERE identifier = ? AND ip_address = ?",
-    args: [identifier, ipAddress],
-  });
+
+  const loginAttempts = await neonClient`SELECT * FROM login_attempts WHERE lower(identifier) = ${lowerIdentifier} AND ip_address = ${ipAddress}`;
 
   const now = new Date();
-  if (loginAttempts.rows.length > 0) {
-    const attempt = loginAttempts.rows[0];
-    const lastAttemptAt = new Date(attempt.last_attempt_at as string);
+  if (loginAttempts.length > 0) {
+    const attempt = loginAttempts[0];
+    const lastAttemptAt = attempt?.last_attempt_at as Date
     const diffMinutes = (now.getTime() - lastAttemptAt.getTime()) / (1000 * 60);
 
-    if (attempt.attempts as number >= 5 && diffMinutes < 15) {
+    if (attempt?.attempts as number >= 5 && diffMinutes < 15) {
       throw createError({
         statusCode: 429,
         message: "Muitas tentativas. Tente novamente em 15 minutos.",
@@ -35,20 +40,14 @@ export default defineEventHandler(async (event) => {
 
     // Reset attempts if it's been more than 15 minutes
     if (diffMinutes >= 15) {
-      await db.execute({
-        sql: "UPDATE login_attempts SET attempts = 0, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [attempt.id],
-      });
+      await neonClient`UPDATE login_attempts SET attempts = 0, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ${attempt?.id as number}`;
     }
   }
 
   // 2. Find User
-  const users = await db.execute({
-    sql: "SELECT u.* FROM users u WHERE u.username = ? OR u.email = ?",
-    args: [identifier, identifier],
-  });
+  const users = await neonClient`SELECT * FROM users WHERE lower(username) = ${lowerIdentifier} OR lower(email) = ${lowerIdentifier}`;
 
-  if (users.rows.length === 0) {
+  if (users.length === 0) {
     await recordLoginAttempt(identifier, ipAddress);
     throw createError({
       statusCode: 401,
@@ -56,7 +55,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const user = users.rows[0];
+  const user = users[0]!
 
   // 3. Verify Password
   const isPasswordValid = await bcrypt.compare(password, user.password as string);
@@ -70,13 +69,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // 4. Success - Clear attempts
-  await db.execute({
-    sql: "DELETE FROM login_attempts WHERE identifier = ? AND ip_address = ?",
-    args: [identifier, ipAddress],
-  });
+  await neonClient`DELETE FROM login_attempts WHERE identifier = ${identifier} AND ip_address = ${ipAddress}`;
 
-  // 5. Set Session Cookie (Simplified for now - using JSON for simple system)
-  // In a real production app, this should be signed or a JWT
   const sessionData = {
     id: user.id,
     name: user.name,
@@ -86,22 +80,20 @@ export default defineEventHandler(async (event) => {
     avatar_url: user.avatar_url,
   };
 
-  setCookie(event, "auth_session", JSON.stringify(sessionData), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-    path: "/",
-  });
+  await setUserSession(event, {
+    user: sessionData
+  })
 
-  return {
-    user: sessionData,
-  };
+  return true
 });
 
 async function recordLoginAttempt(identifier: string, ipAddress: string) {
-  const result = await db.execute({
-    sql: "INSERT INTO login_attempts (identifier, ip_address, attempts, last_attempt_at) VALUES (?, ?, 1, CURRENT_TIMESTAMP) ON CONFLICT(identifier, ip_address) DO UPDATE SET attempts = attempts + 1, last_attempt_at = CURRENT_TIMESTAMP",
-    args: [identifier, ipAddress],
-  });
+  const result = await neonClient`
+    INSERT INTO login_attempts
+      (identifier, ip_address, attempts, last_attempt_at)
+      VALUES (${identifier}, ${ipAddress}, 1, CURRENT_TIMESTAMP) ON
+      CONFLICT(identifier, ip_address)
+      DO UPDATE SET attempts = login_attempts.attempts + 1, last_attempt_at = CURRENT_TIMESTAMP
+    `;
   return result;
 }

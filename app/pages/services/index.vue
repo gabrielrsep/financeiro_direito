@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { Plus, Search, Trash2, DollarSign, Eye, ChevronUp, ChevronDown } from 'lucide-vue-next'
+import { ref, computed, watch } from 'vue'
+import { Plus, Search, Trash2, DollarSign, Eye } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useToastStore } from '~/stores/toast'
-import { formatCurrency, formatDate } from '~/utils/formatters'
+import { formatCurrency } from '~/utils/formatters'
 import PaymentModal from '~/components/PaymentModal.vue'
 
 interface Service {
@@ -19,82 +19,43 @@ interface Service {
   is_fully_paid?: boolean
 }
 
+interface ServicesResponse {
+    success: boolean
+    data: Service[]
+    meta: { totalPages: number }
+}
+
+
 const router = useRouter()
 const toastStore = useToastStore()
 
-const services = ref<Service[]>([])
 const loading = ref(false)
 const currentPage = ref(1)
 const totalPages = ref(1)
 const searchQuery = ref('')
 const selectedStatus = ref('all')
-const showCreateModal = ref(false)
 const showConfirmDelete = ref(false)
 const showPaymentModal = ref(false)
 const serviceToDelete = ref<number | null>(null)
 const selectedServiceForPayment = ref<Service | null>(null)
-const sortBy = ref<'description' | 'client_name' | 'value_charged' | 'status'>('description')
-const sortOrder = ref<'asc' | 'desc'>('asc')
+// sorting refs removed
 
-// Stats
-const stats = computed(() => {
-  const totalCharged = services.value.reduce((sum, s) => sum + s.value_charged, 0)
-  const totalReceived = services.value.reduce((sum, s) => sum + s.total_paid, 0)
-  const balance = totalCharged - totalReceived
-  return { totalCharged, totalReceived, balance }
-})
+const statusFilter = computed(() => selectedStatus.value === 'all' ? '' : selectedStatus.value)
 
-// Fetch services
-const fetchServices = async () => {
-  loading.value = true
-  try {
-    const statusFilter = selectedStatus.value === 'all' ? '' : selectedStatus.value
-    const result = await $fetch<{ success: boolean; data: Service[]; meta: { totalPages: number } }>('/api/services', {
-      query: {
+  const { data: services, refresh } = await useFetch<ServicesResponse>('/api/services', {
+  query: {
         page: currentPage.value,
         limit: 10,
         search: searchQuery.value,
-        status: statusFilter,
-        sortBy: sortBy.value,
-        sortOrder: sortOrder.value
+        status: statusFilter.value
       }
-    })
-    if (result.success) {
-      services.value = result.data
-      totalPages.value = result.meta.totalPages
-    }
-  } catch (error) {
-    toastStore.error('Erro ao carregar serviços')
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchServices()
 })
 
 watch([searchQuery, selectedStatus], () => {
   currentPage.value = 1
-  fetchServices()
 })
 
-// Sort
-const handleSort = (column: 'description' | 'client_name' | 'value_charged' | 'status') => {
-  if (sortBy.value === column) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  } else {
-    sortBy.value = column
-    sortOrder.value = 'asc'
-  }
-  currentPage.value = 1
-  fetchServices()
-}
-
-const getSortIcon = (column: string) => {
-  if (sortBy.value !== column) return null
-  return sortOrder.value === 'asc' ? ChevronUp : ChevronDown
-}
+// Sorting removed: server uses default ordering
 
 // Delete service
 const confirmDelete = (id: number) => {
@@ -111,7 +72,7 @@ const deleteService = async () => {
     showConfirmDelete.value = false
     serviceToDelete.value = null
     toastStore.success('Serviço deletado com sucesso')
-    fetchServices()
+    refresh()
   } catch (error) {
     toastStore.error('Erro ao deletar serviço')
   }
@@ -126,7 +87,7 @@ const openPaymentModal = (service: Service) => {
 const handlePaymentCreated = () => {
   showPaymentModal.value = false
   selectedServiceForPayment.value = null
-  fetchServices()
+  refresh()
 }
 
 </script>
@@ -134,126 +95,102 @@ const handlePaymentCreated = () => {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex justify-between items-center">
+    <div class="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
       <div>
         <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Serviços</h1>
         <p class="text-slate-500 dark:text-slate-400">Gerencie serviços prestados aos clientes</p>
       </div>
       <button
-        @click="showCreateModal = true"
-        class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        @click="router.push('/services/new')"
+        class="inline-flex items-center justify-center rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 dark:text-white dark:bg-slate-600 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
       >
-        <Plus class="h-4 w-4" />
+        <Plus class="mr-2 h-4 w-4" />
         Novo Serviço
       </button>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-        <p class="text-sm text-slate-600 dark:text-slate-400 mb-1">Total Contratado</p>
-        <p class="text-2xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(stats.totalCharged) }}</p>
-      </div>
-      <div class="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-        <p class="text-sm text-slate-600 dark:text-slate-400 mb-1">Total Recebido</p>
-        <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ formatCurrency(stats.totalReceived) }}</p>
-      </div>
-      <div class="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700">
-        <p class="text-sm text-slate-600 dark:text-slate-400 mb-1">Saldo a Receber</p>
-        <p class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ formatCurrency(stats.balance) }}</p>
-      </div>
-    </div>
-
     <!-- Filters -->
-    <div class="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="flex-1">
-          <div class="relative">
-            <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Buscar por descrição ou cliente..."
-              class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
-            />
-          </div>
-        </div>
+    <div class="flex items-center space-x-2 bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+      <div class="relative w-full max-w-md">
+        <Search class="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Buscar por descrição ou cliente..."
+          class="flex h-9 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 pl-8 text-slate-900 dark:text-white"
+        />
       </div>
     </div>
 
     <!-- Table -->
-    <div class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div class="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
       <div v-if="loading" class="flex justify-center py-8">
         <div class="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
       </div>
-      <div v-else-if="services.length === 0" class="text-center py-12">
+      <div v-else-if="services?.data.length === 0" class="text-center py-12">
         <p class="text-slate-500 dark:text-slate-400">Nenhum serviço encontrado</p>
       </div>
       <table v-else class="w-full">
-        <thead class="bg-slate-50 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-600">
+        <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
           <tr>
             <th class="px-6 py-3 text-left">
-              <button
-                @click="handleSort('description')"
-                class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
+              <div class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
                 Descrição
-                <component v-if="getSortIcon('description')" :is="getSortIcon('description')" class="h-4 w-4" />
-              </button>
+              </div>
             </th>
             <th class="px-6 py-3 text-left">
-              <button
-                @click="handleSort('client_name')"
-                class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
+              <div class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
                 Cliente
-                <component v-if="getSortIcon('client_name')" :is="getSortIcon('client_name')" class="h-4 w-4" />
-              </button>
+              </div>
             </th>
             <th class="px-6 py-3 text-left">
-              <button
-                @click="handleSort('value_charged')"
-                class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
+              <div class="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
                 Valor Cobrado
-                <component v-if="getSortIcon('value_charged')" :is="getSortIcon('value_charged')" class="h-4 w-4" />
-              </button>
+              </div>
             </th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Valor Pago</th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Pendente</th>
             <th class="px-6 py-3 text-left font-semibold text-slate-900 dark:text-white">Ações</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-          <tr v-for="service in services" :key="service.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-            <td class="px-6 py-4 text-slate-900 dark:text-white font-medium">{{ service.description }}</td>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+          <tr v-for="service in services?.data" :key="service.id" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+            <td class="px-6 py-4 text-slate-900 dark:text-slate-400 font-medium">{{ service.description }}</td>
             <td class="px-6 py-4 text-slate-600 dark:text-slate-400">{{ service.client_name }}</td>
-            <td class="px-6 py-4 text-slate-900 dark:text-white font-medium">{{ formatCurrency(service.value_charged) }}</td>
-            <td class="px-6 py-4 text-green-600 dark:text-green-400 font-medium">{{ formatCurrency(service.total_paid) }}</td>
-            <td class="px-6 py-4 text-amber-600 dark:text-amber-400 font-medium">{{ formatCurrency(service.total_pending) }}</td>
+            <td class="px-6 py-4 text-slate-900 dark:text-slate-400 font-medium">{{ formatCurrency(service.value_charged) }}</td>
             <td class="px-6 py-4">
-              <div class="flex items-center gap-2">
+              <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                {{ formatCurrency(service.total_paid) }}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                {{ formatCurrency(service.total_pending) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div class="flex items-center justify-end gap-2">
                 <button
                   @click="router.push(`/services/${service.id}`)"
-                  class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white h-8 w-8 text-slate-500 dark:text-slate-400"
                   title="Ver detalhes"
                 >
-                  <Eye class="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                  <Eye class="h-4 w-4" />
                 </button>
                 <button
                   v-if="!service.is_fully_paid"
                   @click="openPaymentModal(service)"
-                  class="p-2 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                  class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white h-8 w-8 text-green-600 dark:text-green-400"
                   title="Adicionar pagamento"
                 >
-                  <DollarSign class="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <DollarSign class="h-4 w-4" />
                 </button>
                 <button
                   @click="confirmDelete(service.id)"
-                  class="p-2 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 h-8 w-8 text-red-500"
                   title="Deletar"
                 >
-                  <Trash2 class="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <Trash2 class="h-4 w-4" />
                 </button>
               </div>
             </td>
@@ -266,8 +203,8 @@ const handlePaymentCreated = () => {
     <div v-if="totalPages > 1" class="flex justify-center gap-2">
       <button
         :disabled="currentPage === 1"
-        @click="currentPage--; fetchServices()"
-        class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        @click="currentPage--;"
+        class="relative inline-flex items-center rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         Anterior
       </button>
@@ -278,19 +215,12 @@ const handlePaymentCreated = () => {
       </div>
       <button
         :disabled="currentPage === totalPages"
-        @click="currentPage++; fetchServices()"
-        class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        @click="currentPage++;"
+        class="relative inline-flex items-center rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         Próxima
       </button>
     </div>
-
-    <!-- Create Service Modal -->
-    <ServiceModal
-      v-if="showCreateModal"
-      @close="showCreateModal = false"
-      @created="fetchServices(); showCreateModal = false"
-    />
 
     <!-- Payment Modal -->
     <PaymentModal

@@ -1,18 +1,34 @@
-import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import bcrypt from 'bcrypt'
-import { db } from '~~/server/database/connection'
+import { neonClient as sql } from '../../server/database/connection'
+import { getAuthCookie, setCurrentUser } from '../util'
   
 describe('Offices API', async () => {
   await setup({ server: true })
 
-  let createdOfficeId: number | null = null
+  let createdOfficeId: number = 0
+  
+  
+  it('should not create office', async () => {
+    setCurrentUser({ id: 1, office_id: 1 })
+    try {
+      await $fetch<any>('/api/offices', {
+        method: 'POST',
+        body: { name: 'Escritório Testefsdf' },
+        headers: await getAuthCookie()
+      })
+    } catch (ex: any) {
+      expect(ex.status).eq(401)
+    }
+    setCurrentUser({ id: 1, office_id: null })
+  })
 
-
+  
   it('should create a new office', async () => {
     const response = await $fetch<any>('/api/offices', {
       method: 'POST',
-      body: { name: 'Escritório Teste' },
+      body: { name: 'Escritório Teste' }, headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -36,13 +52,12 @@ describe('Offices API', async () => {
       username: `office_user_${Date.now()}`,
       email: `office_user_${Date.now()}@example.com`,
       password: 'password123',
-      office_id: createdOfficeId
     }
 
     const response = await $fetch<any>(`/api/offices/${createdOfficeId}/users`, {
       method: 'POST',
       body: newUser,
-      headers: { 'x-test-user': JSON.stringify({ id: 1, office_id: createdOfficeId, name: 'Admin', username: 'admin', email: '' }) }
+      headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('id')
@@ -53,7 +68,7 @@ describe('Offices API', async () => {
   it('should retrieve a single office', async () => {
     if (!createdOfficeId) throw new Error('Office was not created')
 
-    const response = await $fetch<any>(`/api/offices/${createdOfficeId}`)
+    const response = await $fetch<any>(`/api/offices/${createdOfficeId}`, { headers: await getAuthCookie() })
 
     expect(response).toHaveProperty('success', true)
     expect(response.data.id).toBe(createdOfficeId)
@@ -71,17 +86,14 @@ describe('Offices API', async () => {
   })
 
   it('should not delete an office with linked users', async () => {
-    const office = await db.execute({ sql: 'INSERT INTO offices (name) VALUES (?)', args: ['Escritório Com Usuários'] })
-    const officeId = Number(office.lastInsertRowid)
+    if (!createdOfficeId) throw new Error('Office was not created')
+
     const hashedPassword = await bcrypt.hash('password123', 10)
 
-    await db.execute({
-      sql: 'INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)',
-      args: [officeId, 'User Attached', `attached_${Date.now()}`, `attached_${Date.now()}@example.com`, hashedPassword],
-    })
+    await sql`INSERT INTO users (office_id, name, username, email, password) VALUES (${createdOfficeId}, 'User Attached', ${`attached_${Date.now()}`}, ${`attached_${Date.now()}@example.com`}, ${hashedPassword})`
 
     try {
-      await $fetch(`/api/offices/${officeId}`, {
+      await $fetch(`/api/offices/${createdOfficeId}`, {
         method: 'DELETE'
       })
       throw new Error('Expected delete to fail')
@@ -91,14 +103,15 @@ describe('Offices API', async () => {
   })
 
   it('should delete an office without users', async () => {
-    await db.execute({ sql: 'DELETE FROM users WHERE office_id = ?', args: [createdOfficeId] })
+    await sql`DELETE FROM users WHERE office_id = ${createdOfficeId}`
     if (!createdOfficeId) throw new Error('Office was not created')
 
     const response = await $fetch<any>(`/api/offices/${createdOfficeId}`, {
       method: 'DELETE',
-      headers: { 'x-test-user': JSON.stringify({ id: 1, office_id: createdOfficeId, name: 'Admin', username: 'admin', email: '' }) }
+      headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
+
   })
 })

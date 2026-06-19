@@ -1,14 +1,18 @@
 import { validCredentials } from "~~/server/util/validation/http";
-import { db } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
 import type { PutBlobResult } from "@vercel/blob";
 import { findFormDataValue, getFormDataValue, uploadFile } from "~~/server/util/upload";
-import { devLogger } from "~~/server/util/logger";
-import { getUser } from "~~/server/util/auth";
+import { neonClient as sql } from '~~/server/database/connection'
 
 export default defineEventHandler(async (event) => {
 
-  const { office_id } =  await getUser(event)!;
+  const contentType = getHeader(event, 'Content-Type')
+
+  if(!contentType?.startsWith('multipart/form-data')) {
+    throw createError('Content-Type must be multipart/form-data')
+  }
+
+  const { user } = await getUserSession(event)!;
   const body = await readMultipartFormData(event);
 
   const name = getFormDataValue(body, "name");
@@ -26,13 +30,13 @@ export default defineEventHandler(async (event) => {
 
   validCredentials({username, email, password})
 
-  // Check if username already exists
-  const existingUser = await db.execute({
-    sql: "SELECT id FROM users WHERE username = ? OR email = ?",
-    args: [username, email],
-  });
-
-  if (existingUser.rows.length > 0) {
+  // Check if username already exists or email already exists for the given office id
+  const existingUser = await sql.query(`
+      SELECT id FROM users
+      WHERE (lower(username)) = lower($1) OR (lower(email) = lower($2) AND office_id = $3)
+    `,
+    [username, email, user!.office_id])
+  if (existingUser.length > 0) {
     throw createError({
       statusCode: 409,
       message: "Usuário ou email já cadastrado.",
@@ -42,37 +46,31 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
 
   try {
-    const result = await db.execute({
-      sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
-      args: [office_id, name, username, email, hashedPassword],
-    });
-
-    const userId = Number(result.lastInsertRowid);
-
     let blob: {url: string} | PutBlobResult | null = null;
-    if(avatar) {
+    if (avatar) {
       blob = await uploadFile(body!, "avatar", 'avatar', {
         mimeType: ["image/jpeg", "image/png", "image/jpg"],
         fileSize: 1024 * 1024 * 2
-      })
-      await db.execute({
-        sql: "UPDATE users SET avatar_url = ? WHERE id = ?",
-        args: [blob.url, userId],
-      })
+      });
     }
 
+    const result = await sql.query(
+      `INSERT INTO users (office_id, name, username, email, password, avatar_url) 
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [user!.office_id, name, username, email, hashedPassword, blob?.url]
+    );
     return {
-      id: userId,
+      id: result[0]!.id,
       name,
       username,
       email,
       avatar_url: blob?.url,
+      office_id: user!.office_id
     };
   } catch (error: any) {
-    devLogger.error(error)
     throw createError({
-      statusCode: 500,
-      message: "Erro ao criar usuário.",
+      status: 500,
+      message: error.message,
     });
   }
 });

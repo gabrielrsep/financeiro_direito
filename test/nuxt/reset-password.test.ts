@@ -2,8 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import { nanoid } from 'nanoid'
 import { hash } from 'bcrypt'
-
-let db: any
+import { neonClient as sql } from '../../server/database/connection'
 
 describe('Password Reset API', async () => {
   await setup({ server: true })
@@ -22,23 +21,20 @@ describe('Password Reset API', async () => {
 
   const findUserId = async () => {
     try {
-      const result = await db.execute({
-        sql: 'SELECT id, email FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1',
-        args: [setupData.email]
-      })
+      const result = await sql`SELECT id, email FROM users WHERE LOWER(email) = LOWER(${setupData.email}) LIMIT 1`
 
-      if (result.rows.length === 0) {
-         const insertResult = await db.execute('INSERT INTO users (name, username, email, password, office_id) VALUES (?, ?, ?, ?, ?) RETURNING id', [
+      if (result.length === 0) {
+         const insertResult = await sql.query('INSERT INTO users (name, username, email, password, office_id) VALUES ($1, $2, $3, $4, $5) RETURNING id', [
           setupData.adminName,
           setupData.username,
           setupData.email,
           await hash(setupData.password, 10),
-          29 // Assuming a default office ID
+          1 // Assuming a default office ID
         ])
-        return insertResult.rows[0].id as number
+        return insertResult[0]!.id as number
       }
 
-      return result.rows[0].id as number
+      return result[0]?.id as number
     } catch (error: any) {
       // If the database schema has not been initialized yet, the users table may not exist.
       if (error.message?.includes('no such table')) {
@@ -58,29 +54,18 @@ describe('Password Reset API', async () => {
   }
 
   const clearRecoveryAttempts = async () => {
-    await db.execute({
-      sql: 'DELETE FROM password_recovery_attempts WHERE LOWER(email) = LOWER(?)',
-      args: [setupData.email]
-    })
+    await sql`DELETE FROM password_recovery_attempts WHERE LOWER(email) = LOWER(${setupData.email})`
   }
 
   const createRecoveryToken = async () => {
     await clearRecoveryAttempts()
 
     const token = nanoid()
-    await db.execute({
-      sql: "INSERT INTO password_recovery_tokens (user_id, token, expires_at) VALUES (?, ?, datetime('now', '+1 hour'))",
-      args: [userId, token],
-    })
-
+    await sql`INSERT INTO password_recovery_tokens (user_id, token, expires_at) VALUES (${userId}, ${token}, CURRENT_TIMESTAMP + INTERVAL '1 hours')`
     return token
   }
 
   beforeAll(async () => {
-    await $fetch('/api/auth/check-setup')
-    const databaseModule = await import('../../server/database/connection')
-    db = databaseModule.db
-
     userId = await ensureSetupUser()
   })
 
@@ -109,7 +94,7 @@ describe('Password Reset API', async () => {
       },
     })
 
-    expect(loginResponse).toHaveProperty('user')
+    expect(loginResponse).toBe(true)
   })
 
   it('should delete the recovery token after successful reset', async () => {
@@ -136,7 +121,7 @@ describe('Password Reset API', async () => {
       expect.fail('Token reuse should not be allowed')
     } catch (error: any) {
       expect(error.status).toBe(401)
-      expect(error.data?.statusMessage).toContain('expirado ou inválido')
+      expect(error.data?.message).toContain('expirado ou inválido')
     }
   })
 
@@ -152,7 +137,7 @@ describe('Password Reset API', async () => {
       expect.fail('Expected invalid token to fail')
     } catch (error: any) {
       expect(error.status).toBe(401)
-      expect(error.data?.statusMessage).toContain('expirado ou inválido')
+      expect(error.data?.message).toContain('expirado ou inválido')
     }
   })
 
@@ -170,7 +155,7 @@ describe('Password Reset API', async () => {
       expect.fail('Expected password mismatch to fail')
     } catch (error: any) {
       expect(error.status).toBe(400)
-      expect(error.data?.statusMessage).toContain('não conferem')
+      expect(error.data?.message).toContain('não conferem')
     }
   })
 
@@ -188,7 +173,7 @@ describe('Password Reset API', async () => {
       expect.fail('Expected short password to fail')
     } catch (error: any) {
       expect(error.status).toBe(400)
-      expect(error.data?.statusMessage).toContain('no mínimo 8 caracteres')
+      expect(error.data?.message).toContain('no mínimo 8 caracteres')
     }
   })
 })

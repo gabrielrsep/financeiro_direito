@@ -51,18 +51,17 @@ const savePayment = async () => {
         await $fetch('/api/payments', {
             method: 'POST',
             body: {
-                id: props.paymentId,
                 process_id: props.processId,
                 service_id: props.serviceId,
                 client_id: props.clientId,
                 value_paid: valuePaid.value,
                 payment_date: paymentDate.value,
+                type: 'payment'
             }
         })
         emit('saved')
         closeModal()
     } catch (error) {
-        console.error('Erro ao salvar pagamento:', error)
         toastStore.error('Erro ao salvar pagamento', true)
     }
 }

@@ -10,8 +10,8 @@ interface Process {
     client_id: number
     client_name: string
     process_number: string
-    value_charged: number
-    total_paid: number
+    value_charged: string
+    total_paid: string
 }
 
 interface ApiResponse {
@@ -54,7 +54,8 @@ const scheduledQueryParams = computed(() => {
     
     return {
         startDate,
-        endDate
+        endDate,
+        type: 'charge'
     }
 })
 
@@ -135,9 +136,8 @@ const deletePayment = async () => {
     if (!paymentToDelete.value) return
 
     try {
-        await $fetch('/api/payments', {
-            method: 'DELETE',
-            body: { id: paymentToDelete.value }
+        await $fetch(`/api/payments/${paymentToDelete.value}`, {
+            method: 'DELETE'
         })
         refreshGastos()
         refreshScheduled()
@@ -161,7 +161,7 @@ const isExpired = (date: string) => {
 
 
 const getRemainingValue = (process: Process) => {
-    return Math.max(0, process.value_charged - process.total_paid)
+    return Math.max(0, Number(process.value_charged) - Number(process.total_paid))
 }
 </script>
 
@@ -206,8 +206,8 @@ const getRemainingValue = (process: Process) => {
                             class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                             <td class="p-4 align-middle font-medium text-slate-900 dark:text-white">{{ process.process_number }}</td>
                             <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ process.client_name }}</td>
-                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ formatCurrency(process.value_charged) }}</td>
-                            <td class="p-4 align-middle text-green-600 dark:text-green-400 font-medium">{{ formatCurrency(process.total_paid) }}</td>
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">{{ formatCurrency(Number(process.value_charged)) }}</td>
+                            <td class="p-4 align-middle text-green-600 dark:text-green-400 font-medium">{{ formatCurrency(Number(process.total_paid)) }}</td>
                             <td class="p-4 align-middle text-amber-600 dark:text-amber-400 font-bold">
                                 {{ formatCurrency(getRemainingValue(process)) }}
                             </td>

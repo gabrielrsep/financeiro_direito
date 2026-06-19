@@ -1,16 +1,6 @@
 import { getUser } from "~~/server/util/auth";
-import { db } from "../../database/connection";
+import { neonClient, replaceQuestionMarks } from "../../database/connection";
 import { isFullyPaid } from "../../util/payment";
-
-type ServiceWithPaymentInfo = {
-    id: number;
-    description: string;
-    client_name: string;
-    total_paid: number;
-    total_pending: number;
-    value_charged: number;
-    is_fully_paid: boolean;
-};
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
@@ -21,7 +11,8 @@ export default defineEventHandler(async (event) => {
     const status = query.status as string;
     const offset = (page - 1) * limit;
 
-        const { office_id: officeId } = await getUser(event)!;
+    const { user } = await getUserSession(event);
+    const officeId = user!.office_id
 
     try {
         let sql = `
@@ -58,8 +49,6 @@ export default defineEventHandler(async (event) => {
             params.push(status);
         }
 
-        conditions.push("s.deleted_at IS NULL");
-
         if (conditions.length > 0) {
             const whereClause = " WHERE " + conditions.join(" AND ");
             sql += whereClause;
@@ -69,17 +58,11 @@ export default defineEventHandler(async (event) => {
         sql += " ORDER BY s.updated_at DESC LIMIT ? OFFSET ?";
 
         // Count total
-        const totalResult = await db.execute({
-            sql: countSql,
-            args: params
-        });
-        const total = totalResult.rows[0] ? Number(totalResult.rows[0].total) : 0;
+        const totalResult = await neonClient.query(replaceQuestionMarks(countSql), params);
+        const total = totalResult[0] ? Number(totalResult[0].total) : 0;
 
         // Get data
-        const dataResult: ServiceWithPaymentInfo[] = await db.execute({
-            sql,
-            args: [...params, limit, offset]
-        }).then(res => res.rows);
+        const dataResult = await neonClient.query(replaceQuestionMarks(sql), [...params, limit, offset])
         
 
         for (const service of dataResult) {
@@ -95,7 +78,8 @@ export default defineEventHandler(async (event) => {
                 total,
                 page,
                 limit,
-                totalPages
+                totalPages,
+                
             }
         };
     } catch (error: any) {

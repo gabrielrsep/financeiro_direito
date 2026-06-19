@@ -1,0 +1,303 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { ChevronLeft, ChevronRight, X, Calendar, User, Undo2, Trash2, Plus } from 'lucide-vue-next'
+import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
+import ConfirmModal from '~/components/ConfirmModal.vue'
+import ScheduleChargeModal from '~/components/ScheduleChargeModal.vue'
+
+useHead({
+    title: 'Pagamentos e Agendamentos'
+})
+
+interface Client {
+    id: number
+    name: string
+    document: string
+}
+
+interface Payment {
+    id: number
+    amount: number
+    value_paid: number
+    payment_date: string
+    movement_date: string
+    client_name: string
+    process_number: string
+    service_description?: string
+    created_at: string
+    type: string
+}
+
+interface ApiResponse {
+    success: boolean
+    data: Payment[]
+    meta: {
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+    }
+}
+
+const page = ref(1)
+const limit = ref(10)
+const startDate = ref('')
+const endDate = ref('')
+const selectedClientId = ref<string>('')
+const selectedClientName = ref('')
+
+const isClientModalOpen = ref(false)
+const showConfirmDelete = ref(false)
+const paymentToDelete = ref<number | null>(null)
+const isDeleting = ref(false)
+const isScheduleModalOpen = ref(false)
+
+// Fetch schedules
+const { data: schedulesData, refresh: refreshSchedules } = await useFetch<ApiResponse>('/api/payments/history', {
+    params: computed(() => ({
+        page: page.value,
+        limit: limit.value,
+        ...(startDate.value && { startDate: startDate.value }),
+        ...(endDate.value && { endDate: endDate.value }),
+        ...(selectedClientId.value && { clientId: selectedClientId.value }),
+        type: 'charge'
+    })),
+    watch: [page]
+})
+
+const schedules = computed(() => schedulesData.value?.data || [])
+
+const total = computed(() => schedulesData.value?.meta?.total || 0)
+const totalPages = computed(() => schedulesData.value?.meta?.totalPages || 1)
+
+// Watch filters to reset page
+watch([startDate, endDate, selectedClientId], () => {
+    page.value = 1
+    refreshSchedules()
+})
+
+const openClientModal = () => {
+    isClientModalOpen.value = true
+}
+
+const onClientSelected = (client: Client) => {
+    selectedClientId.value = client.id.toString()
+    selectedClientName.value = client.name
+}
+
+const clearClientFilter = () => {
+    selectedClientId.value = ''
+    selectedClientName.value = ''
+}
+
+const clearFilters = () => {
+    startDate.value = ''
+    endDate.value = ''
+    clearClientFilter()
+}
+
+const handleDeleteClick = (id: number) => {
+    paymentToDelete.value = id
+    showConfirmDelete.value = true
+}
+
+const confirmDelete = async () => {
+    if (!paymentToDelete.value) return
+
+    isDeleting.value = true
+    try {
+
+        await $fetch(`/api/payments/${paymentToDelete.value}`, { method: 'DELETE' })
+        refreshSchedules()
+        
+        showConfirmDelete.value = false
+        paymentToDelete.value = null
+    } catch (error) {
+        console.error('Failed to delete:', error)
+    } finally {
+        isDeleting.value = false
+    }
+}
+
+const handleScheduleCreated = () => {
+    isScheduleModalOpen.value = false
+    page.value = 1
+    refreshSchedules()
+}
+</script>
+
+<template>
+    <div class="space-y-6">
+        <!-- Header -->
+        <div class="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Pagamentos e Agendamentos</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-1">Gerencie pagamentos recebidos e agendamentos de cobranças.</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-t-lg shadow-sm transition-colors">
+            <div class="flex space-x-8 px-6">
+                <NuxtLink to="/financial/payments" 
+                    class="py-4 px-1 border-b-2 font-medium text-sm transition-colors border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700">
+                    Pagamentos Recebidos
+                </NuxtLink>
+                <button 
+                    class="py-4 px-1 border-b-2 font-medium text-sm transition-colors border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white">
+                    Agendamentos
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800 transition-colors space-y-4">
+            <div class="flex flex-wrap items-center gap-4 justify-between">
+                <div class="flex flex-wrap items-center gap-4">
+                    <!-- Date Range -->
+                    <div class="flex items-center space-x-2">
+                        <div class="relative">
+                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Calendar class="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input type="date" v-model="startDate" 
+                                class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
+                                placeholder="Data Inicial" />
+                        </div>
+                        <span class="text-slate-400">-</span>
+                        <div class="relative">
+                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Calendar class="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input type="date" v-model="endDate" 
+                                class="pl-10 flex h-9 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white"
+                                placeholder="Data Final" />
+                        </div>
+                    </div>
+
+                    <!-- Client Filter -->
+                    <div class="relative flex items-center">
+                        <button @click="openClientModal" 
+                            class="flex items-center h-9 px-3 rounded-md border border-slate-300 dark:border-slate-700 bg-transparent text-sm shadow-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-900 dark:text-white min-w-[200px] justify-between">
+                            <span v-if="selectedClientName" class="truncate max-w-[180px]">{{ selectedClientName }}</span>
+                            <span v-else class="text-slate-500 dark:text-slate-400 flex items-center">
+                                <User class="h-4 w-4 mr-2" />
+                                Filtrar por Cliente
+                            </span>
+                        </button>
+                        <button v-if="selectedClientId" @click="clearClientFilter" class="ml-2 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                            <X class="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <button v-if="startDate || endDate || selectedClientId" @click="clearFilters" 
+                        class="text-sm text-red-500 hover:text-red-700 font-medium transition-colors flex items-center">
+                        <X class="h-4 w-4 mr-1" />
+                        Limpar Filtros
+                    </button>
+                </div>
+
+                <!-- New Schedule Button (Schedules tab only) -->
+                <button @click="isScheduleModalOpen = true"
+                    class="flex items-center gap-2 h-9 px-4 rounded-md bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 font-medium text-sm shadow-sm transition-colors">
+                    <Plus class="h-4 w-4" />
+                    Novo Agendamento
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden transition-colors">
+            <div class="w-full overflow-auto">
+
+                <!-- Schedules Table -->
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                            <th class="h-10 px-4 align-middle">Data Agendamento</th>
+                            <th class="h-10 px-4 align-middle">Processo/Serviço/Cliente</th>
+                            <th class="h-10 px-4 align-middle">Valor</th>
+                            <th class="h-10 px-4 align-middle">Descrição</th>
+                            <th class="h-10 px-4 align-middle w-[50px]"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tr v-for="schedule in schedules" :key="schedule.id"
+                            class="group hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                                {{ formatDate(schedule.movement_date) }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                                {{ schedule.client_name || schedule.process_number || schedule.service_description || '-' }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">
+                                {{ formatCurrency(schedule.amount) }}
+                            </td>
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400 text-xs">
+                                {{ schedule.service_description || '-' }}
+                            </td>
+                            <td class="p-4 align-middle text-right">
+                                <button @click="handleDeleteClick(schedule.id)" 
+                                    class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    title="Excluir Agendamento">
+                                    <Trash2 class="h-4 w-4" />
+                                </button>
+                            </td>
+                        </tr>
+                        <tr v-if="schedules.length === 0">
+                            <td colspan="6" class="h-24 text-center text-slate-500 dark:text-slate-400">
+                                Nenhum agendamento encontrado.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 sm:px-6 rounded-lg shadow-sm transition-colors" v-if="total > 0">
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-slate-700 dark:text-slate-300">
+                        Mostrando <span class="font-medium text-slate-900 dark:text-white">{{ (page - 1) * limit + 1 }}</span> até <span class="font-medium text-slate-900 dark:text-white">{{ Math.min(page * limit, total) }}</span> de <span class="font-medium text-slate-900 dark:text-white">{{ total }}</span> resultados
+                    </p>
+                </div>
+                <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button @click="page--" :disabled="page <= 1" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50 transition-colors">
+                        <span class="sr-only">Anterior</span>
+                        <ChevronLeft class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                    <button @click="page++" :disabled="page >= totalPages" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-slate-400 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50 transition-colors">
+                        <span class="sr-only">Próximo</span>
+                        <ChevronRight class="h-5 w-5" aria-hidden="true" />
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <ClientSelectionModal
+            :only-recurrents="true"
+            :isOpen="isClientModalOpen" 
+            @close="isClientModalOpen = false" 
+            @select="onClientSelected" 
+        />
+
+        <ConfirmModal
+            :isOpen="showConfirmDelete"
+            title="Excluir Agendamento"
+            message="Tem certeza que deseja excluir este agendamento? Esta ação não pode ser revertida."
+            confirmLabel="Confirmar exclusão"
+            cancelLabel="Cancelar"
+            variant="danger"
+            @close="showConfirmDelete = false"
+            @confirm="confirmDelete"
+        />
+
+        <ScheduleChargeModal
+            :isOpen="isScheduleModalOpen"
+            @close="isScheduleModalOpen = false"
+            @created="handleScheduleCreated"
+        />
+    </div>
+</template>

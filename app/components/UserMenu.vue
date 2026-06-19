@@ -2,7 +2,8 @@
 import { ChevronDown, Settings, LogOut } from 'lucide-vue-next'
 import Avatar from './Avatar.vue'
 
-const authStore = useAuthStore()
+const { user, clear } = useUserSession()
+
 const isOpen = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
 
@@ -28,8 +29,8 @@ onMounted(() => {
 })
 
 async function handleLogout() {
-  closeMenu()
-  await authStore.logout()
+  await clear()
+  await navigateTo('/login', { replace: true })
 }
 </script>
 
@@ -40,10 +41,10 @@ async function handleLogout() {
       class="flex items-center px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95 group"
     >
       <div class="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold uppercase mr-2 shadow-sm">
-        <Avatar :user="authStore.user" />
+        <Avatar :user="user" />
       </div>
       <span class="text-xs font-bold text-slate-700 dark:text-slate-300 mr-2 max-w-[120px] truncate">
-        {{ authStore.user?.name }}
+        {{ user?.name }}
       </span>
       <ChevronDown 
         class="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform duration-200"
@@ -66,8 +67,8 @@ async function handleLogout() {
       >
         <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-800 mb-2">
           <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Conta</p>
-          <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ authStore.user?.username }}</p>
-          <p class="text-[10px] text-slate-500 truncate">{{ authStore.user?.office_name }}</p>
+          <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ user?.username }}</p>
+          <p class="text-[10px] text-slate-500 truncate">{{ user?.office_name }}</p>
         </div>
 
         <NuxtLink 

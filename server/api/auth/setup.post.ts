@@ -1,4 +1,4 @@
-import { db } from "../../database/connection";
+import { neonClient } from "../../database/connection";
 import bcrypt from "bcrypt";
 import { validCredentials } from "~~/server/util/validation/http";
 
@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
   validCredentials({username, email, password})
 
   // 2. Check if users already exist
-  const existingUsers = await db.execute("SELECT COUNT(*) as count FROM users");
-  if (Number(existingUsers.rows[0]?.count || 0) > 0) {
+  const existingUsers = await neonClient`SELECT COUNT(*) as count FROM users`;
+  if (Number(existingUsers[0]?.count || 0) > 0) {
     throw createError({
       statusCode: 403,
       message: "O sistema já foi configurado.",
@@ -29,23 +29,38 @@ export default defineEventHandler(async (event) => {
     // 3. Hash Password
     const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
 
-    const trx = await db.transaction();
+    const result = await neonClient`
+    with
+      new_office as (
+      insert
+        into
+          offices (name)
+        values (${officeName}) returning id
+      ),
+      new_user as (
+      insert
+        into
+          users (office_id, name, username, email, password)
+          select
+            id,
+            ${adminName},
+            ${username},
+            ${email},
+            ${hashedPassword}
+          from
+            new_office
+        returning id as user_id,
+            office_id
+      )
+      select
+        user_id,
+        office_id
+      from
+        new_user
+    `;
 
-    const officeResult = await trx.execute({
-      sql: "INSERT INTO offices (name) VALUES (?)",
-      args: [officeName]
-    });
-    
-    const officeId = Number(officeResult.lastInsertRowid);
-
-    const userResult = await trx.execute({
-      sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
-      args: [officeId, adminName, username, email, hashedPassword]
-    });
-
-    await trx.commit();
-
-    const userId = Number(userResult.lastInsertRowid);
+    const userId = Number(result[0]?.user_id);
+    const officeId = Number(result[0]?.office_id);
 
     // 5. Success - Set Session Cookie
     const sessionData = {
@@ -56,15 +71,9 @@ export default defineEventHandler(async (event) => {
       office_name: officeName,
     };
 
-    setCookie(event, "auth_session", JSON.stringify(sessionData), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: "/",
-    });
+    await setUserSession(event, sessionData)
     
   } catch (error: any) {
-    console.error("Setup error:", error);
     throw createError({
       statusCode: 500,
       message: "Erro interno ao configurar o sistema: " + error.message,

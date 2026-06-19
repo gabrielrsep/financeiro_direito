@@ -1,5 +1,4 @@
-import { getUser } from "~~/server/util/auth";
-import { db } from "../../database/connection";
+import { neonClient, replaceQuestionMarks } from "../../database/connection";
 
 export default defineEventHandler(async (event) => {
     const query = getQuery(event);
@@ -9,7 +8,8 @@ export default defineEventHandler(async (event) => {
     const sortBy = (query.sortBy as string) || 'created_at-desc';
     const offset = (page - 1) * limit;
 
-    const { office_id: officeId } = await getUser(event)
+    const { user } = await getUserSession(event)
+    const officeId = user?.office_id;
 
     const currentDate = new Date();
     const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
 
     try {
         const recurrent = query.recurrent === 'true';
-
+        
         let sql = `
         SELECT
             c.*,
@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
         }
 
         if (recurrent) {
-            whereConditions.push("is_recurrent = 1");
+            whereConditions.push("is_recurrent IS TRUE");
         }
 
         const whereClause = " WHERE " + whereConditions.join(" AND ");
@@ -60,18 +60,11 @@ export default defineEventHandler(async (event) => {
         sql += ` GROUP BY c.id ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
         
         // Count total
-        const totalResult = await db.execute({
-            sql: countSql,
-            args: params
-        });
-        const total = totalResult.rows[0] ? Number(totalResult.rows[0].total) : 0;
+        const totalResult = await neonClient.query(replaceQuestionMarks(countSql), params);
+        const total = totalResult[0] ? Number(totalResult[0].total) : 0;
 
         // Get data
-        const dataResult = await db.execute({
-            sql,
-            args: [...params, limit, offset]
-        });
-        const clients = dataResult.rows;
+        const clients = await neonClient.query(replaceQuestionMarks(sql), [...params, limit, offset]);
 
         const totalPages = Math.ceil(total / limit);
 
@@ -87,7 +80,7 @@ export default defineEventHandler(async (event) => {
         };
     } catch (error: any) {
         throw createError({
-            statusCode: 500,
+            status: 500,
             message: error.message,
         });
     }

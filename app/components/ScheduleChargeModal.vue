@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { X, DollarSign, Calendar, Link2, ChevronDown } from 'lucide-vue-next'
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 import ProcessSelectionModal from '~/components/ProcessSelectionModal.vue'
@@ -52,10 +52,11 @@ const saveSchedule = async () => {
 
     isLoading.value = true
     try {
-        const body: any = {
-            amount: amount.value,
-            movement_date: movementDate.value,
-            description: description.value || null
+        const body: Payment = {
+            value_paid: amount.value,
+            payment_date: movementDate.value,
+            description: description.value,
+            type: 'charge'
         }
 
         // Add the appropriate entity ID
@@ -69,7 +70,8 @@ const saveSchedule = async () => {
             }
         }
 
-        await $fetch('/api/schedules', {
+
+        await $fetch('/api/payments', {
             method: 'POST',
             body
         })
@@ -217,6 +219,7 @@ const getEntityTypeLabel = (type: string) => {
         :isOpen="isClientModalOpen"
         @close="isClientModalOpen = false"
         @select="onClientSelected"
+        :onlyRecurrents="true"
     />
 
     <ProcessSelectionModal

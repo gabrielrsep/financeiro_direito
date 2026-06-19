@@ -1,9 +1,8 @@
-export default defineEventHandler((event) => {
-  deleteCookie(event, "auth_session", {
-    path: "/",
-  });
 
+export default defineEventHandler(async (event) => {
+  const success = await clearUserSession(event)
+  
   return {
-    success: true,
+    success
   };
 });

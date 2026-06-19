@@ -9,7 +9,8 @@ interface Client {
 }
 
 interface Props {
-  isOpen: boolean
+  isOpen: boolean,
+  onlyRecurrents?: boolean
 }
 
 const props = defineProps<Props>()
@@ -27,8 +28,9 @@ const fetchClients = async () => {
         const response = await $fetch<{ success: boolean, data: Client[], meta: { totalPages: number } }>('/api/clients', {
             params: {
                 page: currentPage.value,
+                search: searchQuery.value,
                 limit: 5,
-                search: searchQuery.value
+                recurrent: props.onlyRecurrents || false
             }
         })
         if (response.success) {

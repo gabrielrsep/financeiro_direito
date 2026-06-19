@@ -1,8 +1,7 @@
-import { getUser } from "../util/auth";
 
 export default defineEventHandler(async (event) => {
-    if(process.env.VITEST)
-        return;
+    if(process.env.VITEST || process.env.NODE_ENV === 'test')
+        return undefined;
 
     const url = getRequestURL(event)
 
@@ -16,21 +15,14 @@ export default defineEventHandler(async (event) => {
         '/reset-password',
         '/',
         '/api/auth/check-setup',
-        '/api/auth/user',
         '/password-recovery',
         '/api/auth/recovery-password',
-        '/api/auth/reset-password'
+        '/api/auth/reset-password',
+        '/api/_auth/session'
     ]
 
-    // Permitir acesso as rotas públicas sem autenticação
     if(!allowedPaths.includes(url.pathname)) {
-        const session = await getUser(event, getCookie(event, "auth_session"));
-        if (!session) {
-            throw createError({
-                statusCode: 401,
-                message: "Não autorizado.",
-            });
-        }
+        await requireUserSession(event)
     }
 
 });

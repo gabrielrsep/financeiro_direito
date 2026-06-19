@@ -1,34 +1,16 @@
 <script setup lang="ts">
 import { UserPlus, Pencil, Trash2, Users, Search } from 'lucide-vue-next'
 
-const authStore = useAuthStore()
-const users = ref<any[]>([])
-const loading = ref(true)
 const searchQuery = ref('')
 const isModalOpen = ref(false)
 const selectedUser = ref<any>(null)
 const isConfirmDeleteOpen = ref(false)
 const userToDelete = ref<any>(null)
 
-async function fetchUsers() {
-  loading.value = true
-  try {
-    users.value = await $fetch<any[]>('/api/users')
-  } catch (error) {
-    console.error('Erro ao carregar usuários:', error)
-  } finally {
-    loading.value = false
+const { data, refresh, pending } = await useFetch('/api/users', {
+  query: {
+    q: searchQuery
   }
-}
-
-const filteredUsers = computed(() => {
-  if (!searchQuery.value) return users.value
-  const q = searchQuery.value.toLowerCase()
-  return users.value.filter(u =>
-    u.name.toLowerCase().includes(q) ||
-    u.username.toLowerCase().includes(q) ||
-    u.email.toLowerCase().includes(q)
-  )
 })
 
 function openCreateModal() {
@@ -53,15 +35,14 @@ async function handleDelete() {
     await $fetch(`/api/users/${userToDelete.value.id}`, {
       method: 'DELETE'
     })
-    await fetchUsers()
+    await refresh()
     isConfirmDeleteOpen.value = false
     userToDelete.value = null
   } catch (error: any) {
-    alert(error.data?.statusMessage || 'Erro ao excluir usuário')
+    alert(error.data?.message || 'Erro ao excluir usuário')
   }
 }
 
-onMounted(fetchUsers)
 
 useHead({
   title: 'Usuários'
@@ -100,12 +81,12 @@ useHead({
     <!-- Lista de Usuários -->
     <div
       class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
-      <div v-if="loading" class="p-12 flex justify-center items-center flex-col space-y-4">
+      <div v-if="pending" class="p-12 flex justify-center items-center flex-col space-y-4">
         <div class="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
         <p class="text-slate-500 dark:text-slate-400 font-medium">Carregando usuários...</p>
       </div>
 
-      <div v-else-if="filteredUsers.length === 0" class="p-12 text-center">
+      <div v-else-if="data?.length === 0" class="p-12 text-center">
         <div
           class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 mb-4">
           <Search class="w-8 h-8" />
@@ -127,7 +108,7 @@ useHead({
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-            <tr v-for="user in filteredUsers" :key="user.id"
+            <tr v-for="user in data" :key="user.id"
               class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
               <td class="px-6 py-4">
                 <div class="flex items-center">
@@ -137,7 +118,7 @@ useHead({
                   </div>
                   <div>
                     <div class="text-sm font-semibold text-slate-900 dark:text-white">{{ user.name }}</div>
-                    <div v-if="user.id === authStore.user?.id"
+                    <div v-if="user.id === user?.id"
                       class="text-[10px] text-blue-600 font-bold uppercase mt-0.5">Você</div>
                   </div>
                 </div>
@@ -158,7 +139,7 @@ useHead({
                     title="Editar">
                     <Pencil class="w-4 h-4" />
                   </button>
-                  <button v-if="user.id !== authStore.user?.id" @click="confirmDelete(user)"
+                  <button v-if="user.id !== user?.id" @click="confirmDelete(user)"
                     class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     title="Excluir">
                     <Trash2 class="w-4 h-4" />
@@ -171,7 +152,7 @@ useHead({
       </div>
     </div>
 
-    <UserModal :is-open="isModalOpen" :user="selectedUser" @close="isModalOpen = false" @saved="fetchUsers" />
+    <UserModal :is-open="isModalOpen" :user="selectedUser" @close="isModalOpen = false" @saved="refresh" />
 
     <!-- Modal de Confirmação de Exclusão -->
     <ConfirmModal :is-open="isConfirmDeleteOpen" title="Excluir Usuário"

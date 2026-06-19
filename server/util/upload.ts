@@ -9,7 +9,7 @@ const DEV_STORAGE_PATH = "server/storage"
 const compareKey = (key: string) => (item: MultiPartData) => item.name === key;
 
 export const getFormDataValue = (body: MultiPartData[] | undefined, key: string) => {
-    const item = body?.find(compareKey(key));
+    const item = findFormDataValue(body, key)
     return item?.data.toString();
 }
 

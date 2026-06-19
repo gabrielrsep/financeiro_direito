@@ -8,10 +8,8 @@ import {
   Building2,
   RefreshCw
 } from 'lucide-vue-next'
-import { useAuthStore } from '~/stores/auth'
 import { formatCurrency, formatDate } from '~/utils/formatters'
 
-const authStore = useAuthStore()
 
 interface Stats {
   kpis: {
@@ -47,21 +45,20 @@ useHead({
   title: 'Dashboard'
 })
 
+const { user } = useUserSession()
+
 const { data: stats, pending } = useFetch<Stats>('/api/dashboard/stats')
-const { data: nextPaymentsData, pending: nextPaymentsPending } = await useFetch<ScheduleResponse>('/api/schedules/history', {
-  params: {
+const { data: nextPaymentsData, pending: nextPaymentsPending } = await useFetch<ScheduleResponse>('/api/payments/history', {
+  query: {
     page: 1,
     limit: 5,
     month: new Date().getMonth() + 1,
-    year: new Date().getFullYear()
+    year: new Date().getFullYear(),
+    type: 'charge'
   }
 })
 
-const nextPayments = computed(() => {
-  return (nextPaymentsData.value?.data || []).slice().sort((a, b) => {
-    return new Date(a.movement_date).getTime() - new Date(b.movement_date).getTime()
-  })
-})
+const nextPayments = computed(() => nextPaymentsData.value?.data || [])
 
 const kpis = computed(() => [
   {
@@ -105,9 +102,9 @@ const kpis = computed(() => [
 <template>
   <div class="space-y-8 pb-10">
     <div class="flex flex-col gap-1">
-      <div v-if="authStore.user?.office_name" class="flex items-center gap-2 text-amber-600 dark:text-amber-500 font-semibold tracking-wide uppercase text-xs mb-1">
+      <div v-if="user?.office_name" class="flex items-center gap-2 text-amber-600 dark:text-amber-500 font-semibold tracking-wide uppercase text-xs mb-1">
         <Building2 class="h-4 w-4" />
-        <span>{{ authStore.user.office_name }}</span>
+        <span>{{ user.office_name }}</span>
       </div>
       <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">Dashboard</h1>
       <p class="text-slate-500 dark:text-slate-400">Visão geral do desempenho e atividades do escritório.</p>

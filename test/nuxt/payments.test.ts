@@ -1,16 +1,23 @@
 
-import { describe, it, expect, beforeAll } from 'vitest'
-import { $fetch, setup } from '@nuxt/test-utils/e2e'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { $fetch, setup, fetch } from '@nuxt/test-utils/e2e'
+import { getAuthCookie, setCurrentUser } from '../util'
+import NodeFormData from 'form-data'
+import { neon } from '@neondatabase/serverless'
 
 describe('Payments API', async () => {
-    await setup({
-      server: true
-    })
+
+
+
+
+  await setup({
+    server: true,
+  })
 
   let createdClientId: number | null = null
   let createdProcessId: number | null = null
-  let createdPaymentId: number | null = null
   let createdFinalPaymentId: number | null = null
+  let createdUserId: number | null = null
 
   const timestamp = Date.now()
   const testClient = {
@@ -33,13 +40,37 @@ describe('Payments API', async () => {
     status: 'Pago'
   }
 
-  const testLoggedInUser = { 'x-test-user': JSON.stringify({ id: 1, office_id: 1 }) }
+  const user = {
+    username: `admin_test_${Date.now()}`,
+    email: `admin_test_${Date.now()}@example.com`,
+    password: 'password123',
+    name: 'abcd'
+  }
 
   beforeAll(async () => {
+    setCurrentUser({ id: 333333, office_id: 1 })
+    const formData = new NodeFormData()
+
+    formData.append('name', user.name)
+    formData.append('username', user.username)
+    formData.append('email', user.email)
+    formData.append('password', user.password)
+
+    const userResponse = await fetch('/api/users', {
+      method: 'POST',
+      body: formData.getBuffer() as any,
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()),  }
+    })
+
+    const uResponse = await userResponse.json()
+    createdUserId = uResponse.id
+
+    setCurrentUser(uResponse)
+
     // Create client
     const clientResponse = await $fetch<any>('/api/clients', {
       method: 'POST',
-      body: testClient, headers: testLoggedInUser
+      body: testClient, headers: await getAuthCookie()
     })
     createdClientId = clientResponse.data.id
 
@@ -49,11 +80,12 @@ describe('Payments API', async () => {
       body: {
         ...testProcess,
         client_id: createdClientId
-      }, headers: testLoggedInUser
+      }, headers: await getAuthCookie()
     })
     createdProcessId = processResponse.data.id
-  })
 
+  })
+  
   it('should create a payment for a process', async () => {
     if (!createdProcessId) throw new Error('Process not created')
 
@@ -63,8 +95,8 @@ describe('Payments API', async () => {
         process_id: createdProcessId,
         value_paid: testPayment.value_paid,
         payment_date: testPayment.payment_date,
-        status: testPayment.status
-      }, headers: testLoggedInUser
+        type: 'payment'
+      }, headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -72,7 +104,6 @@ describe('Payments API', async () => {
     expect(response.data).toHaveProperty('process_id', createdProcessId)
     expect(response.data).toHaveProperty('value_paid', testPayment.value_paid)
 
-    createdPaymentId = response.data.id
   })
 
   it('should mark process as paid when fully paid', async () => {
@@ -83,8 +114,9 @@ describe('Payments API', async () => {
       body: {
         process_id: createdProcessId,
         value_paid: 900,
-        payment_date: new Date().toISOString()
-      }, headers: testLoggedInUser
+        payment_date: new Date().toISOString(),
+        type: 'payment'
+      }, headers: await getAuthCookie()
     })
 
     createdFinalPaymentId = response.data.id
@@ -102,8 +134,8 @@ describe('Payments API', async () => {
         client_id: createdClientId,
         value_paid: 200,
         payment_date: new Date().toISOString(),
-        status: 'Pago'
-      }, headers: testLoggedInUser
+        type: 'payment'
+      }, headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -119,8 +151,9 @@ describe('Payments API', async () => {
         method: 'POST',
         body: {
           process_id: createdProcessId,
-          value_paid: 50
-        }, headers: testLoggedInUser
+          value_paid: 50,
+          type: 'payment'
+        }, headers: await getAuthCookie()
     })
     expect(response).toHaveProperty('success', true)
     expect(response.data).toHaveProperty('value_paid', 50)
@@ -129,7 +162,7 @@ describe('Payments API', async () => {
   it('should fail to create payment without mandatory fields', async () => {
        try {
           await $fetch('/api/payments', {
-              method: 'POST', body: { status: 'Pago' }, headers: testLoggedInUser
+              method: 'POST', body: { value_paid: 50, }, headers: await getAuthCookie()
           })
           throw new Error('Should have failed')
       } catch (error: any) {
@@ -137,30 +170,8 @@ describe('Payments API', async () => {
       }
   })
 
-  it('should delete a payment', async () => {
-      if (!createdFinalPaymentId) throw new Error('Payment not created')
-
-     // Note: Payments API uses DELETE method with body, or query param?
-     // Based on previous analysis, it uses body with { id }.
-     // Some HTTP clients/servers strictly forbid body in DELETE.
-     // Nuxt $fetch supports it if using 'body' prop.
-
-      const response = await $fetch<any>('/api/payments', {
-        method: 'DELETE',
-        body: { id: createdFinalPaymentId },
-        headers: testLoggedInUser
-     })
-
-     expect(response).toHaveProperty('success', true)
-
-      if (createdProcessId) {
-       const processDetails = await $fetch<any>(`/api/processes/${createdProcessId}`)
-       expect(processDetails.data.is_fully_paid).toBe(false)
-      }
-  })
-
   it('should list payments history', async () => {
-    const res = await $fetch<any>('/api/payments/history', { headers: testLoggedInUser })
+    const res = await $fetch<any>('/api/payments/history', {query: {type: 'payment'}, headers: await getAuthCookie() })
     expect(res.success).toBe(true)
     expect(res.data.length).toBeGreaterThan(0)
   })
@@ -169,9 +180,27 @@ describe('Payments API', async () => {
     if (!createdClientId) throw new Error('Client not created')
     
     const res = await $fetch<any>('/api/payments/history', {
-        params: { clientId: createdClientId },
-        headers: testLoggedInUser
+        query: { clientId: createdClientId, type: 'payment' },
+        headers: await getAuthCookie()
     })
     expect(res.success).toBe(true)
+  })
+
+  it('should delete a payment', async () => {
+      if (!createdFinalPaymentId) throw new Error('Payment not created')
+
+      setCurrentUser({id: 9999, office_id: null})
+
+      const response = await $fetch<any>(`/api/payments/${createdFinalPaymentId}`, {
+        method: 'DELETE',
+        headers: await getAuthCookie()
+     })
+
+     expect(response).toHaveProperty('success', true)
+
+      if (createdProcessId) {
+       const processDetails = await $fetch<any>(`/api/processes/${createdProcessId}`)
+       expect(processDetails.data.is_fully_paid).toBe(false)
+      }
   })
 })

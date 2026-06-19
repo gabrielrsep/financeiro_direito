@@ -1,14 +1,14 @@
 
 import { describe, it, expect, beforeAll } from 'vitest'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
-
-
-const userLogeedIn = {'x-test-user': JSON.stringify({ id: 1, name: 'Test User', office_id: 1 })}
+import { getAuthCookie, setCurrentUser } from '../util'
 
 describe('Processes API', async () => {
     await setup({
       server: true
     })
+
+  setCurrentUser({ id: 25, name: 'Test User', office_id: 1 })
 
   let createdClientId: number | null = null
   let createdProcessId: number | null = null
@@ -44,7 +44,7 @@ describe('Processes API', async () => {
     const clientResponse = await $fetch<any>('/api/clients', {
       method: 'POST',
       body: testClient,
-      headers: userLogeedIn
+      headers: await getAuthCookie()
     })
     createdClientId = clientResponse.data.id
   })
@@ -57,8 +57,7 @@ describe('Processes API', async () => {
       body: {
         ...testProcess,
         client_id: createdClientId,
-        office_id: 1
-      }, headers: userLogeedIn
+      }, headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -78,7 +77,7 @@ describe('Processes API', async () => {
         client_id: createdClientId
     }
     const response = await $fetch<any>('/api/processes', {
-        method: 'POST', body: mandatoryProcess, headers: userLogeedIn
+        method: 'POST', body: mandatoryProcess, headers: await getAuthCookie()
     })
     expect(response).toHaveProperty('success', true)
     expect(response.data).toHaveProperty('process_number', mandatoryProcess.process_number)
@@ -90,7 +89,7 @@ describe('Processes API', async () => {
   it('should fail to create process without mandatory fields', async () => {
       try {
           await $fetch('/api/processes', {
-              method: 'POST', body: { description: 'Missing Number and Client' }, headers: userLogeedIn
+              method: 'POST', body: { description: 'Missing Number and Client' }, headers: await getAuthCookie()
           })
           throw new Error('Should have failed')
       } catch (error: any) {
@@ -99,7 +98,7 @@ describe('Processes API', async () => {
   })
 
   it('should list processes', async () => {
-    const response = await $fetch<any>('/api/processes', { headers: userLogeedIn })
+    const response = await $fetch<any>('/api/processes', { headers: await getAuthCookie() })
     
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
@@ -109,7 +108,7 @@ describe('Processes API', async () => {
   it('should get a specific process', async () => {
     if (!createdProcessId) throw new Error('Process not created')
 
-    const response = await $fetch<any>(`/api/processes/${createdProcessId}`, { headers: userLogeedIn })
+    const response = await $fetch<any>(`/api/processes/${createdProcessId}`, { headers: await getAuthCookie() })
     
     expect(response).toHaveProperty('success', true)
     expect(response).toHaveProperty('data')
@@ -126,7 +125,7 @@ describe('Processes API', async () => {
         ...updatedProcess,
         client_id: createdClientId,
         payment_method: 'a_vista'
-      }, headers: userLogeedIn
+      }, headers: await getAuthCookie()
     })
 
     expect(response).toHaveProperty('success', true)
@@ -139,7 +138,7 @@ describe('Processes API', async () => {
      if (!createdProcessId) throw new Error('Process not created')
 
      const response = await $fetch<any>(`/api/processes/${createdProcessId}`, {
-        method: 'DELETE', headers: userLogeedIn
+        method: 'DELETE', headers: await getAuthCookie()
      })
 
      expect(response).toHaveProperty('success', true)
@@ -148,11 +147,9 @@ describe('Processes API', async () => {
   it('should verify process is deleted', async () => {
      if (!createdProcessId) throw new Error('Process not created')
 
-      try {
-         await $fetch(`/api/processes/${createdProcessId}`, { headers: userLogeedIn })
-         // Expect 404 or similar failure
-      } catch (error: any) {
-          expect(error.response?.status).toBe(404)
-      }
+     const response = await $fetch<any>(`/api/processes/${createdProcessId}`, { headers: await getAuthCookie() })
+     expect(response).toHaveProperty('success', true)
+     expect(response.data).toHaveProperty('deleted_at')
+     expect(response.data.deleted_at).not.toBeNull()
   })
 })

@@ -210,7 +210,7 @@ const handleSubmit = async (): Promise<void> => {
     }, 2000);
   } catch (error: any) {
     const statusCode = error.data?.statusCode;
-    const message = error.data?.statusMessage || error.message;
+    const message = error.data?.message || error.message;
 
     if (statusCode === 401) {
       // Token expired

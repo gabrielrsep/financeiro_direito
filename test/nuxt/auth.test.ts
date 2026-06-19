@@ -55,24 +55,6 @@ describe('Auth API', async () => {
     }
   })
 
-  it('should get current user', async () => {
-      // Need cookie to work
-      try {
-          const response = await $fetch<any>('/api/auth/user')
-          expect(response).toHaveProperty('id')
-      } catch (e) {
-          // Expected 401 if not logged in
-      }
-  })
-
-  it('should logout', async () => {
-      try {
-          const response = await $fetch<any>('/api/auth/logout', { method: 'POST' })
-          expect(response).toHaveProperty('success', true)
-      } catch (e) {
-          // 401 if not logged in
-      }
-  })
 
   describe('Password Recovery', () => {
     it('should require email for password recovery', async () => {
@@ -118,7 +100,7 @@ describe('Auth API', async () => {
           expect.fail('Second attempt should have been rate limited')
         } catch (e: any) {
           expect(e.status).toBe(429)
-          expect(e.data?.statusMessage).toContain('Too many')
+          expect(e.data?.message).toContain('Too many')
         }
       } catch (e: any) {
         // If first attempt fails with 404, that's ok (email might not exist in test)
@@ -143,7 +125,7 @@ describe('Auth API', async () => {
         if (e.status === 404 || e.status === 429) {
           expect([404, 429]).toContain(e.status)
         } else {
-          expect.fail(`Unexpected error: ${e.status} - ${e.data?.statusMessage}`)
+          expect.fail(`Unexpected error: ${e.status} - ${e.data?.message}`)
         }
       }
     })

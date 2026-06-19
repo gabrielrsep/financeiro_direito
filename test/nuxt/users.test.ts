@@ -2,13 +2,13 @@
 
 import { describe, it, expect, beforeAll } from 'vitest'
 import { $fetch, fetch, setup } from '@nuxt/test-utils'
-import { db } from '~~/server/database/connection'
+import { neonClient as sql } from '../../server/database/connection'
 import bcrypt from 'bcrypt'
 import NodeFormData from 'form-data'
 import { Buffer } from 'node:buffer'
-import { devLogger } from '~~/server/util/logger'
 
 import { resolve } from 'node:path'
+import { getAuthCookie, setCurrentUser } from '../util'
 
 
 describe('Users API', async () => {
@@ -22,13 +22,13 @@ describe('Users API', async () => {
   })
 
   let createdUserId: number | null = null
-  let authCookie: string | undefined
 
   // User to act as admin/logged in user
   const adminUser = {
     username: `admin_test_${Date.now()}`,
     email: `admin_test_${Date.now()}@example.com`,
-    password: 'password123'
+    password: 'password123',
+
   }
 
   // User to be created/tested
@@ -41,57 +41,35 @@ describe('Users API', async () => {
 
   // Valid updated user
   const updatedUser = {
-    name: 'Updated Test User',
-    username: 'test_user_updated',
-    email: 'updatedtestuser@example.com',
+    name: 'Updated Test Usersdfsdf',
+    username: `test_user_${Date.now()}`,
+    email: `test_user_${Date.now()}@email.com`,
     password: 'newpassword123'
   }
 
   beforeAll(async () => {
     try {
       // 1. Ensure Office exists
-      let officeId: number
-      const officeRes = await db.execute("SELECT id FROM offices LIMIT 1")
-      if (officeRes.rows.length > 0) {
-        officeId = Number(officeRes.rows[0]!.id)
+      let officeId: number = 0
+      const officeRes = await sql`SELECT id FROM offices LIMIT 1`
+      if (officeRes.length > 0) {
+        officeId = Number(officeRes[0]!.id)
       } else {
-        const newOffice = await db.execute({
-          sql: "INSERT INTO offices (name) VALUES (?)",
-          args: ["Test Office"]
-        })
-        officeId = Number(newOffice.lastInsertRowid)
+        const newOffice = await sql`INSERT INTO offices (name) VALUES ('Test Office') RETURNING id`
+        officeId = Number(newOffice[0]!.id)
       }
 
       // 2. Create Admin User
       const hashedPassword = await bcrypt.hash(adminUser.password, 10)
-      await db.execute({
-        sql: "INSERT INTO users (office_id, name, username, email, password) VALUES (?, ?, ?, ?, ?)",
-        args: [officeId, "Test Admin", adminUser.username, adminUser.email, hashedPassword]
-      })
-
-      // 3. Login
-      const response = await $fetch<any>('/api/auth/login', {
-        method: 'POST',
-        body: {
-          identifier: adminUser.username,
-          password: adminUser.password
-        },
-        onResponse({ response }) {
-          const setCookie = response.headers.get('set-cookie')
-          if (setCookie) {
-            authCookie = setCookie.split(';')[0]
-          }
-        }
-      })
-      
-      if (!response.user) {
-         throw new Error('Login failed')
-      }
+      await sql`INSERT INTO users (office_id, name, username, email, password) VALUES
+        (${officeId}, 'Test Admin', ${adminUser.username}, ${adminUser.email}, ${hashedPassword})`
 
     } catch (error) {
       console.error('Setup failed:', error)
       throw error 
     }
+
+    setCurrentUser(adminUser)
   })
 
   // --- Validation Tests (New Logic) ---
@@ -104,7 +82,7 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
       method: 'POST',
         body: formData as any,
-        headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+        headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
       })
       const data = await response.json()
       expect(response.status).toBe(400)
@@ -121,7 +99,7 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
     const data = await response.json()
     expect(response.status).toBe(400)
@@ -139,7 +117,7 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
     const data = await response.json()
     expect(response.status).toBe(400)
@@ -157,7 +135,7 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
         method: 'POST',
         body: formData.getBuffer() as any,
-        headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+        headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
       })
     const data = await response.json()
     expect(response.status).toBe(400)
@@ -186,12 +164,11 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
 
     const data = await response.json()
 
-    devLogger.info(data)
     
     expect(data.id).toBeDefined()
     expect(data.username).toBe(testUser.username)
@@ -217,7 +194,7 @@ describe('Users API', async () => {
     const firstResponse = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
     
     expect(firstResponse.status).toBe(200)
@@ -232,7 +209,7 @@ describe('Users API', async () => {
     const response = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
     const data = await response.json()
     expect(response.status).toBe(409)
@@ -240,8 +217,9 @@ describe('Users API', async () => {
   })
 
   it('should list users', async () => {
+    setCurrentUser({ office_id: 1 })
     const response = await $fetch<any[]>('/api/users', {
-        headers: { Cookie: authCookie || '' }
+        headers: await getAuthCookie()
     })
     expect(Array.isArray(response)).toBe(true)
     expect(response.length).toBeGreaterThan(0)
@@ -249,6 +227,8 @@ describe('Users API', async () => {
 
   it('should update the user with new avatar', async () => {
     if (!createdUserId) return
+
+    setCurrentUser({ office_id: null })
 
     const formData = new NodeFormData()
     formData.append('name', updatedUser.name)
@@ -264,7 +244,7 @@ describe('Users API', async () => {
     const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'PUT',
       body: formData.getBuffer() as any,
-      headers: { ...formData.getHeaders(), Cookie: authCookie || '' }
+      headers: { ...formData.getHeaders(), ...(await getAuthCookie()) }
     })
     
     const data = await response.json()
@@ -280,7 +260,7 @@ describe('Users API', async () => {
 
     const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'DELETE',
-      headers: { Cookie: authCookie || '' }
+      headers: await getAuthCookie()
     })
     const data = await response.json()
     expect(response.status).toBe(200)
