@@ -21,12 +21,6 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    if(installments && installments.value <= 0) {
-        throw createError({
-            message: "no instalment value"
-        })
-    }
-
     const pool = new Pool({ connectionString: process.env.DATABASE_URL })
     const connection = await pool.connect()
     let ex_: any

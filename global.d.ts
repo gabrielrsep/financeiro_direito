@@ -9,3 +9,15 @@ interface Payment {
     service_id?: number
     description?: string
 }
+
+interface Process {
+    id: number
+    client_id: number
+    process_number: string
+    tribunal: string
+    target: string
+    description: string
+    status: string
+    value_charged: string
+    payment_method: string
+}

@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowLeft, Check, DollarSign, FileText, Gavel, Loader2, Search, User, Target } from 'lucide-vue-next'
+import { ArrowLeft, Check, DollarSign, FileText, Gavel, Loader2, Search, User } from 'lucide-vue-next'
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
 import { useToastStore } from '~/stores/toast'
 import { formatCurrency } from '~/utils/formatters'
-import { formatPaymentMethod } from '~/utils'
 
 interface Client {
   id: number
@@ -147,10 +146,6 @@ const submit = async () => {
       toastStore.success('Processo atualizado com sucesso')
       emit('saved', props.initialProcess.id)
     } else {
-      const response = await $fetch<{ success: boolean; data: { id: number } }>('/api/processes', {
-        method: 'POST',
-        body: payload
-      })
 
       if (showInstallments.value) {
         payload.installments = {
@@ -159,6 +154,11 @@ const submit = async () => {
           initialPaymentDate: firstDate.value
         }
       }
+
+      const response = await $fetch<{ success: boolean; data: { id: number } }>('/api/processes', {
+        method: 'POST',
+        body: payload
+      })
 
       toastStore.success('Processo criado com sucesso')
       if (response.data?.id) {

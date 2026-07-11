@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { X, DollarSign, Calendar } from 'lucide-vue-next'
+import { X, DollarSign, Calendar, Loader2 } from 'lucide-vue-next'
 import { useToastStore } from '~/stores/toast'
 import { formatCurrency } from '~/utils/formatters'
 
@@ -8,32 +7,27 @@ interface Props {
   isOpen: boolean
   processId?: number | null
   serviceId?: number | null
-  clientId?: number | undefined
+  clientId?: number | null
   processNumber: string
   clientName: string
   remainingValue: number
-  paymentId?: number | null
 }
 
 const toastStore = useToastStore()
+const getCurretDate = () => new Date().toISOString().split('T')[0]
 
 const props = defineProps<Props>()
 const emit = defineEmits(['close', 'saved'])
 
-const valuePaid = ref<number>(0)
-const paymentDate = ref(new Date().toISOString().split('T')[0])
+const valuePaid = ref(0)
+const paymentDate = ref(getCurretDate())
+const loading = ref(false)
 
 const closeModal = () => {
     valuePaid.value = 0
+    paymentDate.value = getCurretDate()
     emit('close')
 }
-
-// Pre-fill value if editing a payment
-watch(() => props.isOpen, (isOpen) => {
-    if (isOpen && props.paymentId) {
-        valuePaid.value = props.remainingValue
-    }
-})
 
 const savePayment = async () => {
     if (!props.processId && !props.serviceId && !props.clientId) return
@@ -47,6 +41,7 @@ const savePayment = async () => {
         return
     }
     
+    loading.value = true
     try {
         await $fetch('/api/payments', {
             method: 'POST',
@@ -59,10 +54,13 @@ const savePayment = async () => {
                 type: 'payment'
             }
         })
+        
         emit('saved')
         closeModal()
-    } catch (error) {
-        toastStore.error('Erro ao salvar pagamento', true)
+    } catch (error: any) {
+        toastStore.error('Erro ao salvar pagamento', error.message)
+    } finally {
+        loading.value = false
     }
 }
 
@@ -120,8 +118,13 @@ const savePayment = async () => {
                     class="inline-flex items-center justify-center rounded-md text-sm font-medium border border-slate-200 dark:border-slate-700 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 h-9 px-4 py-2 text-slate-700 dark:text-slate-300 dark:hover:text-white transition-colors">
                     Cancelar
                 </button>
-                <button @click="savePayment"
-                    class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 h-9 px-4 py-2 shadow-sm transition-colors">
+                <button
+                    @click="savePayment"
+                    class="inline-flex items-center justify-center rounded-md text-sm font-medium bg-slate-900 dark:bg-slate-50 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 h-9 px-4 py-2 shadow-sm transition-colors"
+                    :disabled="loading"
+                >
+                    <Loader2 v-if="loading" class="animate-spin -ml-1 mr-2 h-5 w-5" />
+
                     Confirmar Pagamento
                 </button>
             </div>

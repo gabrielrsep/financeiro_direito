@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
 
   await sql.transaction([
     sql`UPDATE users SET password = ${hashedPassword}, updated_at = CURRENT_TIMESTAMP WHERE id = ${userId}`,
-    sql`DELETE FROM password_recovery_tokens WHERE id = ${tokenRecord!.id}`,
+    sql`DELETE FROM password_recovery_tokens WHERE token = ${token}`,
   ])
 
   return {

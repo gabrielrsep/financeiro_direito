@@ -12,13 +12,11 @@ import { formatCurrency, formatDate } from '~/utils/formatters'
 
 
 interface Stats {
-  kpis: {
-    activeProcesses: number
-    activeServices: number
-    monthlyRevenue: number
-    recurrentRevenue: number
-    pendingExpenses: number
-  }
+  active_processes: number
+  active_services: number
+  monthly_revenue: number
+  recurrent_revenue: number
+  pending_expenses: number
 }
 
 interface NextPayment {
@@ -63,35 +61,35 @@ const nextPayments = computed(() => nextPaymentsData.value?.data || [])
 const kpis = computed(() => [
   {
     title: 'Processos Ativos',
-    value: stats.value?.kpis.activeProcesses || 0,
+    value: stats.value?.active_processes || 0,
     description: 'Em andamento no momento',
     icon: FileText,
     color: 'text-blue-600'
   },
   {
     title: 'Serviços Ativos',
-    value: stats.value?.kpis.activeServices || 0,
+    value: stats.value?.active_services || 0,
     description: 'Serviços em prestação',
     icon: FileText,
     color: 'text-purple-600'
   },
   {
     title: 'Receita Mensal',
-    value: formatCurrency(stats.value?.kpis.monthlyRevenue || 0),
+    value: formatCurrency(stats.value?.monthly_revenue || 0),
     description: 'Recebido este mês',
     icon: TrendingUp,
     color: 'text-emerald-600'
   },
   {
     title: 'Receita Recorrente',
-    value: formatCurrency(stats.value?.kpis.recurrentRevenue || 0),
+    value: formatCurrency(stats.value?.recurrent_revenue || 0),
     description: 'De clientes recorrentes este mês',
     icon: RefreshCw,
     color: 'text-indigo-600'
   },
   {
     title: 'Gastos Pendentes',
-    value: formatCurrency(stats.value?.kpis.pendingExpenses || 0),
+    value: formatCurrency(stats.value?.pending_expenses || 0),
     description: 'Pendentes este mês',
     icon: AlertCircle,
     color: 'text-rose-600'

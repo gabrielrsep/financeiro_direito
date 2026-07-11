@@ -108,7 +108,6 @@ definePageMeta({
 });
 
 const toastStore = useToastStore();
-const router = useRouter();
 
 const email = ref('');
 const isLoading = ref(false);

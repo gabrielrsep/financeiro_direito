@@ -13,37 +13,42 @@ export default defineEventHandler(async (event) => {
   }
   const processResult = await sql`
     SELECT 
-      p.*,
+      p.id,
+      p.client_id,
+      p.process_number,
+      p.tribunal,
+      p.target,
+      p.description,
+      p.status,
+      p.value_charged,
+      p.payment_method,
       c.name as client_name,
       c.document as client_document,
       c.contact as client_contact,
-      c.address as client_address
+      c.address as client_address,
+      coalesce(sum(fm.amount), 0) as total_paid
     FROM processes p
-    LEFT JOIN clients c ON p.client_id = c.id
-    WHERE p.id = ${id}`
+    JOIN clients c ON p.client_id = c.id
+    left join financial_movements fm on p.id = fm.process_id 
+    WHERE p.id = ${id}
+    group by p.id, c.id
+  `
 
-    const process = processResult[0];
+  const process = processResult[0];
 
-    if (!process) {
-      throw createError({
-        statusCode: 404,
-        message: 'Processo não encontrado'
-      })
-    }
+  if (!process) {
+    throw createError({
+      statusCode: 404,
+      message: 'Processo não encontrado'
+    })
+  }
 
     // Get payment history
     const paymentsResult = await sql`
       SELECT *, amount as value_paid, movement_date as payment_date
       FROM financial_movements
       WHERE process_id = ${id} AND type = 'payment'
-      ORDER BY movement_date DESC, created_at DESC
-    `
-
-    const totalPaid = await sql`
-      SELECT
-        SUM(amount) as total
-      FROM financial_movements
-      WHERE process_id = ${id} AND type = 'payment'
+      ORDER BY movement_date DESC, created_at DESC LIMIT 10
     `
 
     const payments = paymentsResult;
@@ -54,7 +59,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         ...process,
-        is_fully_paid: isFullyPaid(Number(process.value_charged), totalPaid[0]!.total),
+        is_fully_paid: isFullyPaid(Number(process.value_charged), Number(process.total_paid)),
         payments
       }
     }

@@ -7,8 +7,6 @@ import {
     Phone,
     MapPin,
     DollarSign,
-    CheckCircle2,
-    Clock,
     Pencil,
     Trash2,
 } from 'lucide-vue-next'
@@ -47,7 +45,7 @@ const showPaymentModal = ref(false)
 const showConfirmDelete = ref(false)
 const isDeleting = ref(false)
 
-const { data: response, pending, error, refresh } = await useFetch<{ success: boolean; data: ServiceDetails }>(`/api/services/${serviceId}`)
+const { data: response, error, refresh } = await useFetch<{ success: boolean; data: ServiceDetails }>(`/api/services/${serviceId}`)
 
 const service = computed(() => response.value?.data)
 
@@ -55,11 +53,6 @@ const isFullyPaid = computed(() => service.value?.is_fully_paid)
 
 useHead({
     title: computed(() => `Serviço: ${service.value?.description || ''}`)
-})
-
-const paymentProgress = computed(() => {
-    if (!service.value || service.value.value_charged === 0) return 0
-    return Math.min(Math.round((service.value.summary.total_paid / service.value.value_charged) * 100), 100)
 })
 
 const deleteService = async () => {
@@ -89,12 +82,7 @@ const deleteService = async () => {
             </NuxtLink>
         </div>
 
-        <div v-if="pending" class="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 dark:border-white"></div>
-            <p class="text-slate-500">Carregando detalhes do serviço...</p>
-        </div>
-
-        <div v-else-if="error || !service" class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-8 rounded-lg text-center">
+        <div v-if="error || !service" class="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-8 rounded-lg text-center">
             <h2 class="text-xl font-bold text-red-800 dark:text-red-400 mb-2">Erro ao carregar serviço</h2>
             <p class="text-red-600 dark:text-red-300">{{ error?.message || 'Serviço não encontrado no sistema.' }}</p>
             <NuxtLink to="/services" class="mt-4 inline-block text-sm font-medium underline">Retornar à lista</NuxtLink>
@@ -178,87 +166,26 @@ const deleteService = async () => {
                             <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center">
                                 <DollarSign class="w-4 h-4 mr-2" /> Resumo Financeiro
                             </h3>
-                            <div class="text-right">
-                                <span class="text-xs font-medium text-slate-500 block">Progresso de Pagamento</span>
-                                <span class="text-lg font-bold text-slate-900 dark:text-white transition-all">{{ paymentProgress }}%</span>
-                            </div>
-                        </div>
-
-                        <!-- Progress Bar -->
-                        <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 mb-8 overflow-hidden">
-                            <div
-                                class="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out"
-                                :style="{ width: `${paymentProgress}%` }"
-                            ></div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
                                 <span class="text-xs text-slate-500 block mb-1">Valor Total Contratado</span>
-                                <span class="text-xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(service.value_charged) }}</span>
+                                <span class="text-xl font-bold text-slate-900 dark:text-white">{{ formatCurrency(Number(service.value_charged)) }}</span>
                             </div>
                             <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
                                 <span class="text-xs text-emerald-600 dark:text-emerald-400 block mb-1">Total Recebido</span>
-                                <span class="text-xl font-bold text-emerald-700 dark:text-emerald-400">{{ formatCurrency(service.summary.total_paid) }}</span>
+                                <span class="text-xl font-bold text-emerald-700 dark:text-emerald-400">{{ formatCurrency(Number(service.summary.total_paid)) }}</span>
                             </div>
                             <div class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800/30">
                                 <span class="text-xs text-amber-600 dark:text-amber-400 block mb-1">Saldo Devedor</span>
-                                <span class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ formatCurrency(service.summary.balance) }}</span>
+                                <span class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ formatCurrency(Number(service.summary.balance)) }}</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- Payment History -->
-                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center">
-                                <Clock class="w-4 h-4 mr-2" /> Histórico de Lançamentos
-                            </h3>
-                            <button v-if="!isFullyPaid"
-                                @click="showPaymentModal = true"
-                                class="px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                            >
-                                Adicionar Pagamento
-                            </button>
-                        </div>
-
-                        <div v-if="!service.payments || service.payments.length === 0" class="text-center py-8">
-                            <p class="text-slate-500 dark:text-slate-400">Nenhum pagamento registrado ainda</p>
-                        </div>
-
-                        <div v-else class="space-y-2">
-                            <div v-for="payment in service.payments" :key="payment.id"
-                                class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700"
-                            >
-                                <div class="flex items-center gap-3 flex-1">
-                                    <div :class="[
-                                        'p-1.5 rounded-lg',
-                                        payment.type === 'payment' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-amber-100 dark:bg-amber-900/20'
-                                    ]">
-                                        <CheckCircle2 v-if="payment.type === 'payment'" class="w-4 h-4 text-green-600 dark:text-green-400" />
-                                        <Clock v-else class="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-slate-900 dark:text-white">
-                                            {{ formatCurrency(payment.value_paid) }}
-                                        </p>
-                                        <p class="text-xs text-slate-500 dark:text-slate-400">
-                                            <span v-if="payment.type === 'payment'">Pago em {{ formatDate(payment.payment_date) }}</span>
-                                            <span v-else>Vencimento: {{ formatDate(payment.movement_date) }}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <span :class="[
-                                    'text-xs font-semibold px-2.5 py-0.5 rounded-full',
-                                    payment.type === 'payment'
-                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                        : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'
-                                ]">
-                                    {{ payment.type == 'payment' ? 'Pago' : 'Agendado' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    <PaymentHistory :payments="service.payments" @action="showPaymentModal = true" :isFullyPaid="Boolean(isFullyPaid)" />
                 </div>
 
                 <!-- Sidebar (Right Column) -->
@@ -318,10 +245,8 @@ const deleteService = async () => {
 
             <!-- Payment Modal -->
             <PaymentModal
-                v-if="showPaymentModal"
                 :isOpen="showPaymentModal"
                 :serviceId="service.id"
-                :clientId="service.client_id"
                 :clientName="service.client_name"
                 :remainingValue="service.summary.balance"
                 :processNumber="`Serviço #${service.id}`"

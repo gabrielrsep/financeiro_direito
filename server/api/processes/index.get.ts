@@ -15,16 +15,26 @@ export default defineEventHandler(async (event) => {
                 select
                     fm.process_id,
                     sum(fm.amount) total_paid
-                from financial_movements fm where fm."type" = 'payment' and fm.process_id is not null group by fm.process_id
-            )
-            select
-                p.*,
-                c."name" as client_name,
-                coalesce(t.total_paid, 0) as total_paid,
-                coalesce(t.total_paid, 0) >= p.value_charged as is_fully_paid
-            from processes p
-            left join totals t on p.id = t.process_id
-            join clients c on c.id = p.client_id 
+                from
+                    financial_movements fm
+                where
+                    fm."type" = 'payment'
+                    and fm.process_id is not null
+                group by
+                    fm.process_id
+                )
+                select
+                    p.*,
+                    c."name" as client_name,
+                    coalesce(t.total_paid, 0) as total_paid,
+                    p.value_charged - coalesce(t.total_paid, 0) as total_pending,
+                    coalesce(t.total_paid, 0) >= p.value_charged as is_fully_paid
+                from
+                    processes p
+                left join totals t on
+                    p.id = t.process_id
+                join clients c on
+                    c.id = p.client_id
         `;
         let countSql = `
             SELECT COUNT(*) as total 

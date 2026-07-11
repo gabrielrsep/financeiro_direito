@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 
     // ===== RATE LIMITING: Check for recent attempts (60 seconds) =====
     const recentAttempt = await neonClient`SELECT id FROM password_recovery_attempts 
-              WHERE email = ${email.toLowerCase()} AND attempted_at > CURRENT_TIMESTAMP - INTERVAL '60 SECOND'
+              WHERE lower(email) = ${email.toLowerCase()} AND attempted_at > CURRENT_TIMESTAMP - INTERVAL '60 SECOND'
               LIMIT 1`;
 
     if (recentAttempt.length > 0) {
@@ -35,15 +35,15 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    const host = event.node.req.headers.host;
+    const host = getRequestHost(event)
+    const proto = getRequestProtocol(event)
     const token = nanoid();
     const resend = new Resend(process.env.RESEND_API_KEY!);
 
-    // 
     await neonClient.transaction([
         neonClient`INSERT INTO password_recovery_attempts (email, attempted_at) VALUES (${email.toLowerCase()}, CURRENT_TIMESTAMP)`,
         neonClient`DELETE FROM password_recovery_attempts WHERE attempted_at < CURRENT_TIMESTAMP - INTERVAL '24 HOUR'`,
-        neonClient`INSERT INTO password_recovery_tokens (user_id, token, expires_at) ,
+        neonClient`INSERT INTO password_recovery_tokens (user_id, token, expires_at)
               VALUES (${result[0]!.id as string}, ${token}, CURRENT_TIMESTAMP + INTERVAL '1 HOUR')`,
     ]);
 
@@ -61,7 +61,7 @@ export default defineEventHandler(async (event) => {
         from: process.env.RECOVERY_DOMAIN!,
         to: email,
         subject: "Recuperação de Senha",
-        html: `<p>Clique no link abaixo para resetar sua senha:</p><a href="https://${host}/reset-password?token=${token}">Resetar Senha</a>`,
+        html: `<p>Clique no link abaixo para resetar sua senha:</p><a href="${proto}://${host}/reset-password?token=${token}">Resetar Senha</a>`,
     });
 
     return {

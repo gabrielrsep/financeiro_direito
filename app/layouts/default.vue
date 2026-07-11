@@ -13,14 +13,13 @@ const { user, loggedIn } = useUserSession()
             </span>
           </NuxtLink>
           <nav class="flex items-center space-x-6 text-sm font-medium">
-            <NuxtLink to="/" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Dashboard</NuxtLink>
-            <NuxtLink to="/clients" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Clientes</NuxtLink>
-            <NuxtLink to="/processes" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Processos</NuxtLink>
-            <NuxtLink to="/financial" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Pagamentos</NuxtLink>
-            <NuxtLink to="/services" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Serviços</NuxtLink>
-            <NuxtLink to="/gastos" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Contas a Receber</NuxtLink>
-            <NuxtLink to="/gastos/escritorio" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Gastos Escritório</NuxtLink>
-            <NuxtLink v-if="!user?.office_id" to="/offices" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Escritórios</NuxtLink>
+            <NuxtLink to="/" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Dashboard</NuxtLink>
+            <NuxtLink to="/clients" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Clientes</NuxtLink>
+            <NuxtLink to="/processes" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Processos</NuxtLink>
+            <NuxtLink to="/services" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Serviços</NuxtLink>
+            <NuxtLink to="/financial/" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Pagamentos</NuxtLink>
+            <NuxtLink to="/gastos/escritorio" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Gastos Escritório</NuxtLink>
+            <NuxtLink v-if="!user?.office_id" to="/offices" active-class="bg-blue-100 dark:bg-blue-900 dark:text-white px-2.5 py-0.5 rounded-full font-semibold" class="transition-colors hover:text-slate-900 dark:hover:text-white text-slate-500 dark:text-slate-400">Escritórios</NuxtLink>
           </nav>
         </div>
         <div class="flex items-center space-x-4">

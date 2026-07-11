@@ -12,7 +12,6 @@ export const formatPaymentMethod = (method: string) => {
         case 'cartao': return 'Cartão de Crédito'
         case 'dinheiro': return 'Dinheiro'
         case 'pix': return 'Pix'
-        case 'em_conta': return 'Parcelado Pelo Escritório'
         default: return method
     }
 }
