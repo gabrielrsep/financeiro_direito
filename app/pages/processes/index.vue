@@ -205,7 +205,7 @@ const handlePaymentCreated = () => {
             </div>
         </div>
 
-        <PaymentModal :isOpen="showPaymentModal && !!selectedProcess" :serviceId="selectedProcess?.id || null"
+        <PaymentModal :isOpen="showPaymentModal && !!selectedProcess" :process-id="selectedProcess?.id || null"
             :clientName="selectedProcess?.client_name || ''" :processNumber="selectedProcess?.description || ''"
             :remainingValue="selectedProcess?.total_pending || 0" @close="showPaymentModal = false"
             @saved="handlePaymentCreated" />
