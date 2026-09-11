@@ -1,6 +1,5 @@
-import { defineEventHandler, getRouterParam } from 'h3'
 import { neonClient as sql } from '~~/server/database/connection'
-import { isFullyPaid } from '~~/server/util/payment'
+import { financialSub, isFullyPaid } from '~~/server/util/payment'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -29,7 +28,7 @@ export default defineEventHandler(async (event) => {
       coalesce(sum(fm.amount), 0) as total_paid
     FROM processes p
     JOIN clients c ON p.client_id = c.id
-    left join financial_movements fm on p.id = fm.process_id 
+    left join financial_movements fm on p.id = fm.process_id and fm."type" = 'payment'
     WHERE p.id = ${id}
     group by p.id, c.id
   `
@@ -43,13 +42,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-    // Get payment history
-    const paymentsResult = await sql`
-      SELECT *, amount as value_paid, movement_date as payment_date
-      FROM financial_movements
-      WHERE process_id = ${id} AND type = 'payment'
-      ORDER BY movement_date DESC, created_at DESC LIMIT 10
-    `
+  const balance = financialSub(Number(process.value_charged), Number(process.total_paid))
+
+  
+  // Get payment history
+  const paymentsResult = await sql`
+    SELECT *, amount as value_paid, movement_date as payment_date
+    FROM financial_movements
+    WHERE process_id = ${id}
+    ORDER BY movement_date DESC, created_at DESC
+  `
 
     const payments = paymentsResult;
 
@@ -59,6 +61,7 @@ export default defineEventHandler(async (event) => {
       success: true,
       data: {
         ...process,
+        balance,
         is_fully_paid: isFullyPaid(Number(process.value_charged), Number(process.total_paid)),
         payments
       }

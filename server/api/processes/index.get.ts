@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const page = parseInt(query.page as string) || 1;
     const limit = parseInt(query.limit as string) || 10;
-    const search = (query.search as string || '').toLowerCase();
+    const search = (query.search as string || '').toUpperCase();
     const offset = (page - 1) * limit;
 
     const { user } = await getUserSession(event)
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
         const conditions: string[] = ['p.office_id = ?', 'p.deleted_at IS NULL', 'c.deleted_at IS NULL'];
 
         if (search) {
-            conditions.push("(p.process_number LIKE ? OR c.name LIKE ?)");
+            conditions.push("(p.process_number LIKE ? OR UPPER(c.name) LIKE ?)");
             const searchParam = `%${search}%`;
             params.push(searchParam, searchParam);
         }

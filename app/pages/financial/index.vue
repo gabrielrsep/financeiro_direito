@@ -275,7 +275,8 @@ const confirmDelete = async () => {
                 <table class="w-full text-sm text-left">
                     <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
                         <tr>
-                            <th class="h-10 px-4 align-middle">Data</th>
+                            <th class="h-10 px-4 align-middle">Data de Inserção</th>
+                            <th class="h-10 px-4 align-middle">Data do Pagamento</th>
                             <th class="h-10 px-4 align-middle">Cliente/Processo/Serviço</th>
                             <th class="h-10 px-4 align-middle">Valor</th>
                             <th class="h-10 px-4 align-middle w-[50px]"></th>
@@ -288,13 +289,17 @@ const confirmDelete = async () => {
                                 {{ formatDate(payment.created_at) }}
                             </td>
 
+                            <td class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                                {{ formatDate(payment.payment_date) }}
+                            </td>
+
                             <td v-if="payment.client_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
                                 Cliente: {{ payment.client_name }}
                             </td>
                             <td v-else-if="payment.process_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
                                 Processo: {{ payment.process_number }}
                             </td>
-                            <td v-if="payment.service_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
+                            <td v-else-if="payment.service_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
                                 Serviço: {{ payment.service_description}}
                             </td>
 

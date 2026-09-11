@@ -2,6 +2,7 @@
 import { X, DollarSign, Calendar, Loader2 } from 'lucide-vue-next'
 import { useToastStore } from '~/stores/toast'
 import { formatCurrency } from '~/utils/formatters'
+import CurrencyInput from './CurrencyInput.vue'
 
 interface Props {
   isOpen: boolean
@@ -14,18 +15,26 @@ interface Props {
 }
 
 const toastStore = useToastStore()
-const getCurretDate = () => new Date().toISOString().split('T')[0]
+
+const getCurrentDate = (): string => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0') // getMonth() inicia em 0
+    const day = String(now.getDate()).padStart(2, '0')
+    
+    return `${year}-${month}-${day}`
+}
 
 const props = defineProps<Props>()
 const emit = defineEmits(['close', 'saved'])
 
 const valuePaid = ref(0)
-const paymentDate = ref(getCurretDate())
+const paymentDate = ref(getCurrentDate())
 const loading = ref(false)
 
 const closeModal = () => {
     valuePaid.value = 0
-    paymentDate.value = getCurretDate()
+    paymentDate.value = getCurrentDate()
     emit('close')
 }
 
@@ -68,7 +77,7 @@ const savePayment = async () => {
 </script>
 
 <template>
-    <div v-if="isOpen"
+    <div v-show="isOpen"
         class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
         @click.self="closeModal">
         <div class="bg-white dark:bg-slate-900 rounded-lg shadow-lg w-full max-w-md flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-800 transition-colors">
@@ -96,7 +105,7 @@ const savePayment = async () => {
                     </label>
                     <div class="relative">
                         <DollarSign class="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-                        <input id="value_paid" type="number" step="0.01" v-model="valuePaid"
+                        <CurrencyInput v-model="valuePaid" type="text"
                             class="flex h-10 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-transparent pl-9 pr-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:focus-visible:ring-slate-300 text-slate-900 dark:text-white" 
                             placeholder="0,00" />
                     </div>

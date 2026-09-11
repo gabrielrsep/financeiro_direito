@@ -4,5 +4,5 @@ export const formatCurrency = (value: number) => {
 
 export const formatDate = (date: string | Date | null | undefined) => {
     if (!date) return ''
-    return new Date(date).toLocaleDateString('pt-BR')
+    return new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
 }

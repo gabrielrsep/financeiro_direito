@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
     const type = query.type as 'charge' | 'payment'
 
 
-
     const { user } = await getUserSession(event)!;
     const officeId = user!.office_id
 

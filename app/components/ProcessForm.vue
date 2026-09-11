@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { ArrowLeft, Check, DollarSign, FileText, Gavel, Loader2, Search, User } from 'lucide-vue-next'
 import ClientSelectionModal from '~/components/ClientSelectionModal.vue'
+import CurrencyInput from '~/components/CurrencyInput.vue'
 import { useToastStore } from '~/stores/toast'
 import { formatCurrency } from '~/utils/formatters'
 
@@ -100,6 +101,7 @@ const hydrateForm = () => {
       document: proc.client_document || ''
     }
     : null
+
 }
 
 watch(() => props.initialProcess, hydrateForm, { immediate: true })
@@ -118,6 +120,7 @@ const onClientSelected = (client: Client) => {
   selectedClient.value = client
   isClientModalOpen.value = false
 }
+
 
 const submit = async () => {
   if (!canSubmit.value) {
@@ -290,7 +293,7 @@ const submit = async () => {
               </label>
               <div class="relative">
                 <DollarSign class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input id="value_charged" v-model.number="valueCharged" type="number" min="0" step="0.01"
+                <CurrencyInput v-model="valueCharged"
                   placeholder="0.00"
                   class="flex h-10 w-full rounded-md border border-slate-300 bg-transparent py-1 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 dark:border-slate-700 dark:text-white dark:focus-visible:ring-slate-300" />
               </div>

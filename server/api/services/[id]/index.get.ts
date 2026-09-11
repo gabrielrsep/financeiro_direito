@@ -1,5 +1,5 @@
 import { neonClient as sql } from "~~/server/database/connection";
-import { isFullyPaid } from "~~/server/util/payment";
+import { isFullyPaid, financialSub } from "~~/server/util/payment";
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, 'id');
@@ -52,7 +52,7 @@ export default defineEventHandler(async (event) => {
         const payments = paymentsResult || [];
 
         const totalPaid = totalPaidResult[0] ? Number(totalPaidResult[0].total) : 0;
-        const totalPending = Number(service.value_charged) - totalPaid;
+        const totalPending = financialSub(Number(service.value_charged), totalPaid);
 
 
         return {
@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
                     value_charged: Number(service.value_charged),
                     total_paid: totalPaid,
                     total_pending: totalPending,
-                    balance: Number(service.value_charged) - totalPaid
+                    balance: financialSub(service.value_charged, totalPaid)
                 }
             }
         };

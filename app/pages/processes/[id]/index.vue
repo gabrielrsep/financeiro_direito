@@ -28,6 +28,7 @@ interface ProcessDetails extends Process {
   client_address: string
   is_fully_paid: boolean
   client_contact: string
+  balance: number
   payments: Payment[]
 }
 
@@ -47,10 +48,6 @@ useHead({
     title: computed(() => `Processo ${process.value?.process_number || ''}`)
 })
 
-const balance = computed(() => {
-    if (!process.value) return 0
-    return Number(process.value.value_charged) - Number(process.value.total_paid)
-})
 
 const deleteProcess = async () => {
     try {
@@ -174,7 +171,7 @@ const deleteProcess = async () => {
                             </div>
                             <div class="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-100 dark:border-amber-800/30">
                                 <span class="text-xs text-amber-600 dark:text-amber-400 block mb-1">Saldo Devedor</span>
-                                <span class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ formatCurrency(balance) }}</span>
+                                <span class="text-xl font-bold text-amber-700 dark:text-amber-400">{{ formatCurrency(process.balance) }}</span>
                             </div>
                         </div>
                         
@@ -250,7 +247,7 @@ const deleteProcess = async () => {
                 :isOpen="showPaymentModal"
                 :processId="process.id"
                 :clientName="process.client_name"
-                :remainingValue="balance"
+                :remainingValue="process.balance"
                 :processNumber="process.process_number"
                 @close="showPaymentModal = false"
                 @saved="refresh(); showPaymentModal = false"

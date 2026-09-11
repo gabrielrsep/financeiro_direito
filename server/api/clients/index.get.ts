@@ -4,19 +4,24 @@ export default defineEventHandler(async (event) => {
     const query = getQuery(event);
     const page = parseInt(query.page as string) || 1;
     const limit = parseInt(query.limit as string) || 10;
-    const search = (query.search as string || '').toLowerCase();
+    const search = (query.search as string || '').toUpperCase();
     const sortBy = (query.sortBy as string) || 'created_at-desc';
     const offset = (page - 1) * limit;
 
     const { user } = await getUserSession(event)
     const officeId = user?.office_id;
 
-    const currentDate = new Date();
-    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-
-    const currentMonthStartStr = currentMonthStart.toISOString();
-    const currentMonthEndStr = currentMonthEnd.toISOString();
+    // Trata inicio e fim do mês diretamente em formato YYYY-MM-DD HH:mm:ss sem distorção de ISO
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    
+    // Primeiro dia do mês às 00:00:00
+    const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01 00:00:00`;
+    // Último dia do mês às 23:59:59
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')} 23:59:59`;
+    
 
     try {
         const recurrent = query.recurrent === 'true';
@@ -24,22 +29,28 @@ export default defineEventHandler(async (event) => {
         let sql = `
         SELECT
             c.*,
-            c.recurrence_value - COALESCE( SUM(fm.amount), 0) recurrence_paid
+            c.recurrence_value - COALESCE(SUM(fm.amount), 0) recurrence_paid
         FROM
             clients c
         LEFT JOIN financial_movements fm ON
             c.id = fm.client_id
             AND fm.type = 'payment'
-            AND fm.movement_date BETWEEN '${currentMonthStartStr}' AND '${currentMonthEndStr}' 
+            AND fm.movement_date BETWEEN ? AND ? 
         `;
+
         let countSql = "SELECT COUNT(*) as total FROM clients c";
-        const params: any[] = [ officeId ];
-        const whereConditions: string[] = ['c.office_id = ?'];
+
+        const sqlParams: any[] = [ startOfMonth, endOfMonth, officeId ];
+        const countParams: any[] = [ officeId ];
+
+        const whereConditions: string[] = ['c.office_id = ?', 'c.deleted_at IS NULL'];
 
         if (search) {
-            whereConditions.push("(name LIKE ? OR replace(document, '.', '') LIKE ?)");
+            whereConditions.push("(UPPER(c.name) LIKE ? OR replace(document, '.', '') LIKE ?)");
             const searchParam = `%${search}%`;
-            params.push(searchParam, searchParam);
+            sqlParams.push(searchParam, searchParam);
+            countParams.push(searchParam, searchParam)
+            
         }
 
         if (recurrent) {
@@ -59,14 +70,17 @@ export default defineEventHandler(async (event) => {
 
         sql += ` GROUP BY c.id ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
         
+        sqlParams.push(limit, offset)
+
         // Count total
-        const totalResult = await neonClient.query(replaceQuestionMarks(countSql), params);
+        const totalResult = await neonClient.query(replaceQuestionMarks(countSql), countParams);
         const total = totalResult[0] ? Number(totalResult[0].total) : 0;
 
         // Get data
-        const clients = await neonClient.query(replaceQuestionMarks(sql), [...params, limit, offset]);
+        const clients = await neonClient.query(replaceQuestionMarks(sql), sqlParams);
 
         const totalPages = Math.ceil(total / limit);
+        
 
         return {
             success: true,

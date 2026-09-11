@@ -13,7 +13,7 @@ interface Process {
     value_charged: number
     total_paid: number
     is_fully_paid: number
-    total_pending: number
+    total_pending: number,
 }
 
 interface ApiResponse {

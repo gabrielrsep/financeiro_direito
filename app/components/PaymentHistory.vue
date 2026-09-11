@@ -24,12 +24,12 @@ defineEmits<{ action: [PointerEvent] }>()
             </button>
         </div>
 
-        <div v-if="!payments || payments.length === 0" class="text-center py-8">
+        <div v-if="!props.payments || props.payments.length === 0" class="text-center py-8">
             <p class="text-slate-500 dark:text-slate-400">Nenhum pagamento registrado ainda</p>
         </div>
 
         <div v-else class="space-y-2">
-            <div v-for="payment in payments" :key="payment.id"
+            <div v-for="payment in props.payments" :key="payment.id"
                 class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700">
                 <div class="flex items-center gap-3 flex-1">
                     <div :class="[
