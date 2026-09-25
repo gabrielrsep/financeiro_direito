@@ -1,4 +1,5 @@
 import { neonClient as sql } from "~~/server/database/connection";
+import { financialSub } from "~~/server/util/payment";
 
 export default defineEventHandler(async (event) => {
     const id = getRouterParam(event, "id");
@@ -65,7 +66,7 @@ export default defineEventHandler(async (event) => {
         )`
     const total_paid = Number((paymentsResult[0] as any).total_paid);
 
-    const balance = total_charged - total_paid;
+    const balance = financialSub(total_charged, total_paid);
 
     return {
         success: true,

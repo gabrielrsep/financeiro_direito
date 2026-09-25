@@ -2,7 +2,7 @@ import { passwordError, validCredentials } from "~~/server/util/validation/http"
 import { validPassword } from "~~/server/util/validation/func";
 import { neonClient as sql } from "~~/server/database/connection";
 import bcrypt from "bcrypt";
-import { findFormDataValue, getFormDataValue, removeFile, uploadFile } from "~~/server/util/upload";
+import { getFormDataValue } from "~~/server/util/upload";
 import { devLogger } from "~~/server/util/logger";
 
 export default defineEventHandler(async (event) => {
@@ -23,8 +23,6 @@ export default defineEventHandler(async (event) => {
   const username = getFormDataValue(body, "username");
   const email = getFormDataValue(body, "email");
   const password = getFormDataValue(body, "password");
-  const avatar = findFormDataValue(body, "avatar");
-
   if (!name || !username || !email) {
     throw createError({
       statusCode: 400,
@@ -35,7 +33,7 @@ export default defineEventHandler(async (event) => {
   validCredentials({username, email})
 
   // Check if user exists
-  const databaseUsers = await sql`SELECT id, avatar_url, office_id FROM users WHERE id = ${id}`
+  const databaseUsers = await sql`SELECT id, office_id FROM users WHERE id = ${id}`
 
   if (databaseUsers.length === 0) {
     throw createError({
@@ -65,21 +63,6 @@ export default defineEventHandler(async (event) => {
 
   const trxs = []
   try {
-    if(avatar) {
-      const avatarUrl = databaseUser!.avatar_url as string;
-      if (avatarUrl) {
-        await removeFile(avatarUrl);
-      }
-      
-      const blob = await uploadFile(body!, "avatar", 'avatar', {
-        mimeType: ["image/jpeg", "image/png", "image/jpg"],
-        fileSize: 1024 * 1024 * 2
-      })
-
-
-      trxs.push(sql`UPDATE users SET avatar_url = ${blob.url} WHERE id = ${id}`)
-    }
-
     trxs.push(sql`UPDATE users SET name = ${name}, username = ${username}, email = ${email}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`)
 
     if (password) {

@@ -6,8 +6,6 @@ useHead({
     title: 'Pagamentos e Agendamentos'
 })
 
-const route = useRoute()
-
 interface Client {
     id: number
     name: string
@@ -64,6 +62,8 @@ const paymentToDelete = ref<number | null>(null)
 const isDeleting = ref(false)
 
 const isScheduleModalOpen = ref(false)
+const entityType = computed(() => !!entityFilter.value.id)
+
 
 // Fetch payments
 const { data: paymentsData, refresh: refreshPayments } = await useFetch<ApiResponse>('/api/payments/history', {
@@ -78,7 +78,7 @@ const { data: paymentsData, refresh: refreshPayments } = await useFetch<ApiRespo
         serviceId: entityFilter.value.type === 'service' ? entityFilter.value.id : null,
         type: type.value
     })),
-    watch: [page]
+    watch: [page, startDate, endDate, entityType, type]
 })
 
 const payments = computed(() => paymentsData.value?.data || [])
@@ -86,11 +86,13 @@ const payments = computed(() => paymentsData.value?.data || [])
 const total = computed(() => paymentsData.value?.meta?.total || 0)
 const totalPages = computed(() => paymentsData.value?.meta?.totalPages || 1)
 
-const entityType = computed(() => !!entityFilter.value.id)
-
 const reset = () => {
-    page.value = 1
-    refreshPayments()
+    if(page.value === 1) {
+        refreshPayments()
+    } else {
+        page.value = 1
+    }
+
 }
 
 // Watch filters to reset page
@@ -294,13 +296,13 @@ const confirmDelete = async () => {
                             </td>
 
                             <td v-if="payment.client_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                Cliente: {{ payment.client_name }}
+                                Cliente: <NuxtLink :to="'/clients/' + payment.client_id">{{ payment.client_name }}</NuxtLink>
                             </td>
                             <td v-else-if="payment.process_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                Processo: {{ payment.process_number }}
+                                Processo: <NuxtLink :to="'/processes/' + payment.process_id">{{ payment.process_number }}</NuxtLink>
                             </td>
                             <td v-else-if="payment.service_id" class="p-4 align-middle text-slate-600 dark:text-slate-400">
-                                Serviço: {{ payment.service_description}}
+                                Serviço: <NuxtLink :to="'/services/' + payment.service_id">{{ payment.service_description }}</NuxtLink>
                             </td>
 
                             <td class="p-4 align-middle text-slate-900 dark:text-white font-medium">

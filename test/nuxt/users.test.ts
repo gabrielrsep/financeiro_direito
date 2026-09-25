@@ -5,7 +5,6 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils'
 import { neonClient as sql } from '../../server/database/connection'
 import bcrypt from 'bcrypt'
 import NodeFormData from 'form-data'
-import { Buffer } from 'node:buffer'
 
 import { resolve } from 'node:path'
 import { getAuthCookie, setCurrentUser } from '../util'
@@ -144,7 +143,7 @@ describe('Users API', async () => {
 
   // --- CRUD Tests ---
 
-  it('should create a new user successfully with avatar', async () => {
+  it('should create a new user successfully without avatar', async () => {
     const testUser = {
       name: 'Test User',
       username: 'testuser_' + Date.now(),
@@ -157,10 +156,6 @@ describe('Users API', async () => {
     formData.append('email', testUser.email)
     formData.append('password', testUser.password)
     
-    // Create a mock file
-
-    formData.append('avatar', Buffer.from('avatar'), { filename: 'avatar.png', contentType: 'image/png' })
-
     const response = await fetch('/api/users', {
       method: 'POST',
       body: formData.getBuffer() as any,
@@ -172,7 +167,9 @@ describe('Users API', async () => {
     
     expect(data.id).toBeDefined()
     expect(data.username).toBe(testUser.username)
-    expect(data.avatar_url).toBe('https://fake-url.com/avatar.png') // Check if mock URL is returned
+    expect(data.avatar_url).toBeNull()
+    const [createdUser] = await sql`SELECT avatar_url FROM users WHERE id = ${data.id}`
+    expect(createdUser!.avatar_url).toBeNull()
     createdUserId = Number(data.id)
   })
 
@@ -225,10 +222,12 @@ describe('Users API', async () => {
     expect(response.length).toBeGreaterThan(0)
   })
 
-  it('should update the user with new avatar', async () => {
+  it('should update the user without changing existing avatar data', async () => {
     if (!createdUserId) return
 
     setCurrentUser({ office_id: null })
+    const legacyAvatarUrl = 'https://legacy.example.com/avatar.png'
+    await sql`UPDATE users SET avatar_url = ${legacyAvatarUrl} WHERE id = ${createdUserId}`
 
     const formData = new NodeFormData()
     formData.append('name', updatedUser.name)
@@ -236,10 +235,6 @@ describe('Users API', async () => {
     formData.append('email', updatedUser.email)
     formData.append('password', updatedUser.password)
 
-
-    // Update avatar
-    const buffer = Buffer.from('new fake image content')
-    formData.append('avatar', buffer, { filename: 'new_avatar.png', contentType: 'image/png' })
 
     const response = await fetch(`/api/users/${createdUserId}`, {
       method: 'PUT',
@@ -250,9 +245,8 @@ describe('Users API', async () => {
     const data = await response.json()
     expect(response.status).toBe(200)
     expect(data).toHaveProperty('success', true)
-    
-    // Check key in mock calls if needed, or verify DB state if we had a way to check helper DB function
-    // For now, response success is enough
+    const [updatedUserRecord] = await sql`SELECT avatar_url FROM users WHERE id = ${createdUserId}`
+    expect(updatedUserRecord!.avatar_url).toBe(legacyAvatarUrl)
   })
 
   it('should delete the user', async () => {

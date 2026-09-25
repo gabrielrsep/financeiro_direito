@@ -1,11 +1,9 @@
 
 <script setup lang="ts">
-import type { User } from '#auth-utils';
 
-const props = defineProps<{ user: Pick<User, 'avatar_url' | 'name'> }>()
+const props = defineProps<{ user: any }>()
 </script>
 
 <template>
-    <img v-if="user?.avatar_url" :src="user.avatar_url" class="rounded w-full h-full object-cover" :alt="user.name" />
-    <span v-else>{{ user?.name.substring(0, 2) }}</span>
+    <span>{{ user?.name?.substring(0, 2) }}</span>
 </template>

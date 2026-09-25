@@ -138,7 +138,7 @@ useHead({
                     <div class="text-2xl font-bold text-slate-900 dark:text-white">
                         {{ formatCurrency(client.financial.total_charged) }}
                     </div>
-                    <p class="text-xs text-slate-400 mt-2">{{ client.processes.length }} processos ativos</p>
+                    <p class="text-xs uppercase text-slate-400 mt-2">{{ client.processes.length }} processos ativos</p>
                 </div>
 
                 <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">

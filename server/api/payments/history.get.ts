@@ -36,14 +36,15 @@ export default defineEventHandler(async (event) => {
     params.push(type)
 
     if(month && year) {
-        const m = Number(month) < 10 ? '0' + month : month
+        const m = parseInt(month)
+        const y = parseInt(year)
         // Maior ou igual ao primeiro dia do mês corrente
         whereConditions.push("fm.movement_date >= make_date(?,?,1)");
-        params.push(year.toString(), m);
+        params.push(y, m);
 
         // Menor que o primeiro dia do próximo mês
         whereConditions.push("fm.movement_date < make_date(?,?,1) + interval '1 month'");
-        params.push(year.toString(), m);
+        params.push(y, m);
     } else if(month || year) {
         throw createError({
             status: 400,
@@ -51,12 +52,13 @@ export default defineEventHandler(async (event) => {
         })
     } else {
         if (startDate) {
-            whereConditions.push("fm.movement_date >= ?");
+            whereConditions.push("fm.movement_date >= ?::date");
             params.push(startDate);
         }
         if (endDate) {
-            whereConditions.push("fm.movement_date <= ?");
-            params.push(endDate.length === 10 ? `${endDate} 23:59:59` : endDate);
+            // Se a coluna for timestamp/timestamptz, força o limite de fim do dia via interval
+            whereConditions.push("fm.movement_date <= (?::date + interval '1 day - 1 microsecond')");
+            params.push(endDate);
         }
     }
 

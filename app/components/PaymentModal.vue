@@ -45,6 +45,13 @@ const savePayment = async () => {
         return
     }
 
+    const year: string | undefined = paymentDate.value.split('-').at(0)
+
+    if(Number(year) <= 1899) {
+        toastStore.error(`O ano deve ser maior que 1899`)
+        return
+    }
+
     if (valuePaid.value > props.remainingValue) {
         toastStore.error('O valor pago não pode ser maior que o saldo devedor')
         return

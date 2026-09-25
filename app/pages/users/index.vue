@@ -130,7 +130,7 @@ useHead({
                 <span class="text-sm text-slate-600 dark:text-slate-400">{{ user.email }}</span>
               </td>
               <td class="px-6 py-4 text-sm text-slate-500">
-                {{ new Date(user.created_at).toLocaleDateString() }}
+                {{ formatDate(user.created_at) }}
               </td>
               <td class="px-6 py-4 text-right">
                 <div class="flex items-center justify-end space-x-2">

@@ -1,7 +1,7 @@
 import { neonClient as sql } from '~~/server/database/connection'
 import bcrypt from 'bcrypt'
 import { validCredentials } from '~~/server/util/validation/http'
-import { findFormDataValue, getFormDataValue, uploadFile } from '~~/server/util/upload'
+import { getFormDataValue } from '~~/server/util/upload'
 import { devLogger } from '~~/server/util/logger'
 
 export default defineEventHandler(async (event) => {
@@ -25,7 +25,6 @@ export default defineEventHandler(async (event) => {
   let username: string | undefined
   let email: string | undefined
   let password: string | undefined
-  let avatar: any = null
   let body: any = null
 
   const contentType = (getRequestHeader(event, 'content-type') || '').toLowerCase()
@@ -35,7 +34,6 @@ export default defineEventHandler(async (event) => {
     username = getFormDataValue(body, 'username')
     email = getFormDataValue(body, 'email')
     password = getFormDataValue(body, 'password')
-    avatar = findFormDataValue(body, 'avatar')
   } else {
     body = await readBody<{ name?: string; username?: string; email?: string; password?: string }>(event)
     name = body.name
@@ -64,16 +62,6 @@ export default defineEventHandler(async (event) => {
     const result = await sql`INSERT INTO users (office_id, name, username, email, password) VALUES (${officeId}, ${name}, ${username}, ${email}, ${hashedPassword}) RETURNING id`
 
     const userId = Number(result[0]!.id)
-    let avatarUrl: string | null = null
-
-    if (avatar && body) {
-      const blob = await uploadFile(body, 'avatar', 'avatar', {
-        mimeType: ['image/jpeg', 'image/png', 'image/jpg'],
-        fileSize: 1024 * 1024 * 2,
-      })
-      avatarUrl = blob.url as string
-      await sql`UPDATE users SET avatar_url = ${avatarUrl} WHERE id = ${userId}`
-    }
 
     return {
       id: userId,
@@ -81,7 +69,7 @@ export default defineEventHandler(async (event) => {
       name,
       username,
       email,
-      avatar_url: avatarUrl,
+      avatar_url: null,
     }
   } catch (error: any) {
     devLogger.error(error)

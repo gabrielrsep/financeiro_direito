@@ -1,7 +1,6 @@
 import { validCredentials } from "~~/server/util/validation/http";
 import bcrypt from "bcrypt";
-import type { PutBlobResult } from "@vercel/blob";
-import { findFormDataValue, getFormDataValue, uploadFile } from "~~/server/util/upload";
+import { getFormDataValue } from "~~/server/util/upload";
 import { neonClient as sql } from '~~/server/database/connection'
 
 export default defineEventHandler(async (event) => {
@@ -19,8 +18,6 @@ export default defineEventHandler(async (event) => {
   const username = getFormDataValue(body, "username");
   const email = getFormDataValue(body, "email");
   const password = getFormDataValue(body, "password");
-  const avatar = findFormDataValue(body, "avatar");
-
   if (!name || !username || !email || !password) {
     throw createError({
       statusCode: 400,
@@ -46,25 +43,17 @@ export default defineEventHandler(async (event) => {
   const hashedPassword = await bcrypt.hash(password, Number(process.env.PASSWORD_ROUNDS || 12));
 
   try {
-    let blob: {url: string} | PutBlobResult | null = null;
-    if (avatar) {
-      blob = await uploadFile(body!, "avatar", 'avatar', {
-        mimeType: ["image/jpeg", "image/png", "image/jpg"],
-        fileSize: 1024 * 1024 * 2
-      });
-    }
-
     const result = await sql.query(
-      `INSERT INTO users (office_id, name, username, email, password, avatar_url) 
-      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [user!.office_id, name, username, email, hashedPassword, blob?.url]
+      `INSERT INTO users (office_id, name, username, email, password) 
+      VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [user!.office_id, name, username, email, hashedPassword]
     );
     return {
       id: result[0]!.id,
       name,
       username,
       email,
-      avatar_url: blob?.url,
+      avatar_url: null,
       office_id: user!.office_id
     };
   } catch (error: any) {
